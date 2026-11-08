@@ -104,7 +104,7 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          sed -i "s|IMAGE_PLACEHOLDER|${{ env.IMAGE_URI }}|g" k8s/deployment.yaml
+          sed -i "s|IMAGE_PLACEHOLDER|$IMAGE_URI|g" k8s/deployment.yaml
           kubectl apply -f k8s/deployment.yaml
           kubectl rollout status deployment/studium-users -n studium --timeout=300s
 

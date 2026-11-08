@@ -196,3 +196,5 @@
   - Adjusted probe startup tolerances (30s liveness, 15s readiness) and added failure diagnostic steps in CI/CD.
 - **2026-11-08 (Enabled AutoProvision on Wolverine SQS Transport):**
   - Added `.AutoProvision()` to `UseAmazonSqsTransport` in `Api/Extensions/MessagingExtensions.cs` to ensure `wolverine-dead-letter-queue` and declared queues are created automatically.
+- **2026-11-08 (Resolved CI/CD Expression Linter Warning):**
+  - Replaced `${{ env.IMAGE_URI }}` with `$IMAGE_URI` in `.github/workflows/ci-cd.yml` to eliminate static workflow schema analysis warnings.
