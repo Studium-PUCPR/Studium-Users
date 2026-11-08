@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: studium
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: studium-users-config
+  namespace: studium
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  AWS__Region: "sa-east-1"
+  AWS__SQS__UsersQueueName: "studium-users-events-queue"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: studium-users
+  namespace: studium
+  labels:
+    app: studium-users
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: studium-users
+  template:
+    metadata:
+      labels:
+        app: studium-users
+    spec:
+      containers:
+        - name: studium-users
+          image: IMAGE_PLACEHOLDER
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: studium-users-config
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: studium-users-secrets
+                  key: DefaultConnection
+            - name: AWS__Cognito__Authority
+              valueFrom:
+                secretKeyRef:
+                  name: studium-users-secrets
+                  key: CognitoAuthority
+            - name: AWS__Cognito__ClientId
+              valueFrom:
+                secretKeyRef:
+                  name: studium-users-secrets
+                  key: CognitoClientId
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: studium-users-service
+  namespace: studium
+  labels:
+    app: studium-users
+spec:
+  type: ClusterIP
+  selector:
+    app: studium-users
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: studium-users-hpa
+  namespace: studium
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: studium-users
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 90

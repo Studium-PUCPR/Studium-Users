@@ -73,10 +73,12 @@
   - [`Api/Middleware/DomainExceptionHandler.cs`](./Api/Middleware/DomainExceptionHandler.cs) — `.NET 10` `IExceptionHandler` mapping `DomainException` to `400 Bad Request`.
   - [`Api/Extensions/AuthenticationExtensions.cs`](./Api/Extensions/AuthenticationExtensions.cs) & [`Api/Extensions/MessagingExtensions.cs`](./Api/Extensions/MessagingExtensions.cs) — Modular DI & `ClaimsPrincipal` extensions.
 - **Centralized CDK Repository (`../Studium-Infra`):**
-  - [`Studium-Infra.csproj`](../Studium-Infra/Studium-Infra.csproj) & [`Stacks/StudiumStack.cs`](../Studium-Infra/Stacks/StudiumStack.cs) — `.NET 10` C# AWS CDK project (`Amazon.CDK.Lib` `2.275.0`) provisioning `NetworkConstruct`, `CognitoConstruct`, `DatabaseConstruct`, and `MessagingConstruct` for the `Studium-PUCPR` organization.
+  - [`Studium-Infra.csproj`](../Studium-Infra/Studium-Infra.csproj) & [`Stacks/StudiumStack.cs`](../Studium-Infra/Stacks/StudiumStack.cs) — `.NET 10` C# AWS CDK project (`Amazon.CDK.Lib` `2.275.0`) provisioning `NetworkConstruct`, `CognitoConstruct`, `DatabaseConstruct`, `MessagingConstruct`, `EcrConstruct` (container registries), and `EksConstruct` (EKS 1.31 Cluster + Managed Nodegroup + IAM roles) for the `Studium-PUCPR` organization.
 - **`Tests/` ([`Studium-Users.Tests.csproj`](./Tests/Studium-Users.Tests.csproj)):**
   - xUnit test suite (26 passing tests) covering `Domain`, `DTOs`, and `Services`.
-- [`Dockerfile`](./Dockerfile) & [`.dockerignore`](./.dockerignore) — Multi-stage `.NET 10.0` container image building `Api/Studium-Users.Api.csproj`.
+- [`Dockerfile`](./Dockerfile) & [`.dockerignore`](./.dockerignore) — Multi-stage `.NET 10.0` container image pre-generating Wolverine code (`dotnet run ... -- codegen write`) into the image so production runs with `TypeLoadMode.Static`.
+- [`k8s/deployment.yaml`](./k8s/deployment.yaml) — Kubernetes manifests defining the `studium` namespace, `studium-users` Deployment (with liveness/readiness health probes on `/health`), ClusterIP Service, and HorizontalPodAutoscaler (HPA).
+- [`.github/workflows/ci-cd.yml`](./.github/workflows/ci-cd.yml) — GitHub Actions CI/CD pipeline running unit tests, building & tagging Docker images with pre-compiled Wolverine codegen, pushing to ECR, and deploying to `studium-eks-cluster`.
 
 ---
 
@@ -166,3 +168,15 @@
   - Created `Infra/Constructs/MessagingConstruct.cs` provisioning `studium-users-events-queue` (`ReceiveMessageWaitTime = Duration.Seconds(20)`) and wired it into `Infra/Stacks/StudiumUsersStack.cs`.
 - **2026-11-08 (Extracted AWS CDK into Dedicated Studium-Infra Repository):**
   - Moved the C# AWS CDK project out of `Studium-Users/Infra` into a dedicated repository at `../Studium-Infra` (`Studium-PUCPR/Studium-Infra`) so shared AWS resources (VPC, Cognito, RDS PostgreSQL, EKS, SQS) are managed centrally without cross-repo CloudFormation collisions.
+- **2026-11-08 (Added EksConstruct to Studium-Infra):**
+  - Created `Constructs/EksConstruct.cs` in `../Studium-Infra` provisioning the `studium-users` ECR repository (`EmptyOnDelete = true`, `MaxImageCount = 5`), the `studium-eks-cluster` EKS 1.31 cluster, and the `studium-eks-nodes` managed EC2 nodegroup (`t3.small`, min 1 / desired 2 / max 3) with IAM permissions for ECR and SQS.
+- **2026-11-08 (Split EcrConstruct out of EksConstruct):**
+  - Moved the `studium-users` ECR repository into `Constructs/EcrConstruct.cs` in `../Studium-Infra` since container registries have an independent lifecycle (used by CI/CD image pushes) from the EKS cluster; EKS-only IAM roles remain inside `EksConstruct`.
+- **2026-11-08 (Wolverine Pre-Codegen, Kubernetes Manifests & GitHub Actions CI/CD):**
+  - Configured Wolverine static code generation in `Api/Program.cs` (`CritterStackDefaults`, `RunJasperFxCommands`, and `DatabaseMigrationHostedService` so migrations only run on app host start).
+  - Updated `Dockerfile` to run `dotnet run ... -- codegen write` during the build stage; the resulting pre-compiled assembly is packaged into the Docker image, eliminating runtime dynamic compilation in EKS.
+  - Added `k8s/deployment.yaml` with Namespace, ConfigMap, Deployment (probes, secret bindings, resources), ClusterIP Service, and HPA (2-5 replicas).
+  - Created `.github/workflows/ci-cd.yml` with OIDC AWS credentials, test verification, ECR image push, and EKS `kubectl apply`.
+- **2026-11-08 (Added ParametersConstruct & Region sa-east-1):**
+  - Updated region default to `sa-east-1` across infrastructure and manifests.
+  - Added `Constructs/ParametersConstruct.cs` in `Studium-Infra` to create SSM Parameter Store entries (`/studium/users/cognito/authority`, `/studium/users/cognito/client-id`, and `/studium/users/database/connection-string`) linking Cognito and RDS endpoints.

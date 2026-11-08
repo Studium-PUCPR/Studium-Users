@@ -1,4 +1,4 @@
-# Stage 1: Build & Publish
+# Stage 1: Build, Wolverine codegen & Publish
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
@@ -10,7 +10,12 @@ COPY ["Api/Studium-Users.Api.csproj", "Api/"]
 RUN dotnet restore "Api/Studium-Users.Api.csproj"
 
 COPY . .
-RUN dotnet publish "Api/Studium-Users.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+# Pre-generate Wolverine handler code so production loads it statically (TypeLoadMode.Static)
+RUN dotnet build "Api/Studium-Users.Api.csproj" -c Release --no-restore
+RUN ASPNETCORE_ENVIRONMENT=Production dotnet run --project "Api/Studium-Users.Api.csproj" -c Release --no-build --no-launch-profile -- codegen write
+
+RUN dotnet publish "Api/Studium-Users.Api.csproj" -c Release --no-restore -o /app/publish /p:UseAppHost=false
 
 # Stage 2: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
