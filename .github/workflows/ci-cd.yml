@@ -104,4 +104,16 @@ jobs:
         run: |
           sed -i "s|IMAGE_PLACEHOLDER|${{ env.IMAGE_URI }}|g" k8s/deployment.yaml
           kubectl apply -f k8s/deployment.yaml
-          kubectl rollout status deployment/studium-users -n studium --timeout=120s
+          kubectl rollout status deployment/studium-users -n studium --timeout=300s
+
+      - name: Debug Kubernetes Pods on Failure
+        if: failure()
+        run: |
+          echo "=== POD STATUS ==="
+          kubectl get pods -n studium -o wide || true
+          echo "=== EVENTS ==="
+          kubectl get events -n studium --sort-by='.metadata.creationTimestamp' || true
+          echo "=== POD DESCRIBE ==="
+          kubectl describe pods -n studium || true
+          echo "=== CONTAINER LOGS ==="
+          kubectl logs -n studium -l app=studium-users --all-containers --tail=200 || true
