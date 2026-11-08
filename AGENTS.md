@@ -193,3 +193,5 @@
   - Added `AwsAccessKeyId` and `AwsSecretAccessKey` to `studium-users-secrets` secret generated in `ci-cd.yml`.
   - Bound `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` into `k8s/deployment.yaml` container environment to allow Wolverine's Amazon SQS transport to authenticate without relying on EC2 IMDS hop limits.
   - Adjusted probe startup tolerances (30s liveness, 15s readiness) and added failure diagnostic steps in CI/CD.
+- **2026-11-08 (Enabled AutoProvision on Wolverine SQS Transport):**
+  - Added `.AutoProvision()` to `UseAmazonSqsTransport` in `Api/Extensions/MessagingExtensions.cs` to ensure `wolverine-dead-letter-queue` and declared queues are created automatically.

@@ -20,7 +20,7 @@ public static class MessagingExtensions
                 var serviceUrl = builder.Configuration["AWS:ServiceURL"];
                 if (!string.IsNullOrWhiteSpace(serviceUrl))
                     cfg.ServiceURL = serviceUrl;
-            });
+            }).AutoProvision();
 
             var usersQueueName = builder.Configuration["AWS:SQS:UsersQueueName"];
             if (!string.IsNullOrWhiteSpace(usersQueueName))
