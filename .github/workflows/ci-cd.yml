@@ -8,8 +8,10 @@ on:
     branches:
       - main
 
+env:
+  ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node24
+
 permissions:
-  id-token: write
   contents: read
 
 jobs:
@@ -40,11 +42,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials (OIDC)
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION || 'sa-east-1' }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-2' }}
 
       - name: Log in to Amazon ECR
         id: login-ecr
@@ -66,7 +69,36 @@ jobs:
 
       - name: Update Kubeconfig for EKS
         run: |
-          aws eks update-kubeconfig --name studium-eks-cluster --region ${{ secrets.AWS_REGION || 'sa-east-1' }}
+          aws eks update-kubeconfig --name studium-eks-cluster --region ${{ secrets.AWS_REGION || 'us-east-2' }}
+
+      - name: Sync Secrets from AWS Parameter Store & Secrets Manager
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-2' }}
+        run: |
+          # Ensure target namespace exists
+          kubectl create namespace studium --dry-run=client -o yaml | kubectl apply -f -
+
+          # Fetch SSM parameters
+          COGNITO_AUTHORITY=$(aws ssm get-parameter --name "/studium/users/cognito/authority" --query "Parameter.Value" --output text --region $AWS_REGION)
+          COGNITO_CLIENT_ID=$(aws ssm get-parameter --name "/studium/users/cognito/client-id" --query "Parameter.Value" --output text --region $AWS_REGION)
+
+          # Fetch RDS credentials from Secrets Manager (auto-populated by CDK)
+          DB_SECRET=$(aws secretsmanager get-secret-value --secret-id "studium/database/postgres" --query "SecretString" --output text --region $AWS_REGION)
+          DB_PASSWORD=$(echo "$DB_SECRET" | jq -r .password)
+          DB_HOST=$(echo "$DB_SECRET" | jq -r .host)
+          DB_PORT=$(echo "$DB_SECRET" | jq -r .port)
+          DB_USER=$(echo "$DB_SECRET" | jq -r .username)
+          DB_NAME="studium_users"
+
+          CONNECTION_STRING="Host=$DB_HOST;Port=$DB_PORT;Database=$DB_NAME;Username=$DB_USER;Password=$DB_PASSWORD"
+
+          # Populate or update Kubernetes Secret
+          kubectl create secret generic studium-users-secrets \
+            -n studium \
+            --from-literal=DefaultConnection="$CONNECTION_STRING" \
+            --from-literal=CognitoAuthority="$COGNITO_AUTHORITY" \
+            --from-literal=CognitoClientId="$COGNITO_CLIENT_ID" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy to Kubernetes
         run: |

@@ -10,7 +10,7 @@ metadata:
   namespace: studium
 data:
   ASPNETCORE_ENVIRONMENT: "Production"
-  AWS__Region: "sa-east-1"
+  AWS__Region: "us-east-2"
   AWS__SQS__UsersQueueName: "studium-users-events-queue"
 ---
 apiVersion: apps/v1

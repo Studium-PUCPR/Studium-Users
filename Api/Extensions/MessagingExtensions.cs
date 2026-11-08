@@ -13,7 +13,7 @@ public static class MessagingExtensions
         {
             opts.Discovery.IncludeAssembly(typeof(BookingEventsHandler).Assembly);
 
-            var awsRegion = builder.Configuration["AWS:Region"] ?? "sa-east-1";
+            var awsRegion = builder.Configuration["AWS:Region"] ?? "us-east-2";
             opts.UseAmazonSqsTransport(cfg =>
             {
                 cfg.RegionEndpoint = RegionEndpoint.GetBySystemName(awsRegion);

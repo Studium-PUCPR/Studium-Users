@@ -180,3 +180,12 @@
 - **2026-11-08 (Added ParametersConstruct & Region sa-east-1):**
   - Updated region default to `sa-east-1` across infrastructure and manifests.
   - Added `Constructs/ParametersConstruct.cs` in `Studium-Infra` to create SSM Parameter Store entries (`/studium/users/cognito/authority`, `/studium/users/cognito/client-id`, and `/studium/users/database/connection-string`) linking Cognito and RDS endpoints.
+- **2026-11-08 (CI/CD Automated Secrets Sync from AWS Secrets Manager & SSM):**
+  - Updated `.github/workflows/ci-cd.yml` to automatically extract the RDS password and host from Secrets Manager secret `studium/database/postgres` and Cognito configuration from SSM Parameter Store, dynamically generating the Kubernetes `studium-users-secrets` secret without manual placeholders.
+  - Added cross-repo `AGENTS.md` checking directive across `.agents/rules/maintain-agents-md.md`.
+- **2026-11-08 (Node 24 Force in Workflows):**
+  - Added `ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node24` to `.github/workflows/ci-cd.yml` to silence Node 20 deprecation notices on GitHub Actions runners.
+- **2026-11-08 (Switched Default AWS Region to us-east-2):**
+  - Updated region default to `us-east-2` (Ohio) across `k8s/deployment.yaml`, `ci-cd.yml`, and `Studium-Infra` (aligning with AWS Brazil organizational resource provisioning).
+- **2026-11-08 (Switched to Standard IAM Access Keys for CI/CD):**
+  - Updated `.github/workflows/ci-cd.yml` to authenticate using `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` secrets, avoiding OIDC identity provider creation restrictions.
