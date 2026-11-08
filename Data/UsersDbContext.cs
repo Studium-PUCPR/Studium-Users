@@ -12,6 +12,6 @@ public class UsersDbContext(DbContextOptions<UsersDbContext> options) : DbContex
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(UsersDbContext).Assembly);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(User).Assembly);
     }
 }

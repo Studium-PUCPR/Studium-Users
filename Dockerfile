@@ -2,11 +2,15 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY ["Studium-Users.csproj", "./"]
-RUN dotnet restore "Studium-Users.csproj"
+COPY ["Directory.Build.props", "Directory.Packages.props", "./"]
+COPY ["Domain/Studium-Users.Domain.csproj", "Domain/"]
+COPY ["Data/Studium-Users.Data.csproj", "Data/"]
+COPY ["Services/Studium-Users.Services.csproj", "Services/"]
+COPY ["Api/Studium-Users.Api.csproj", "Api/"]
+RUN dotnet restore "Api/Studium-Users.Api.csproj"
 
 COPY . .
-RUN dotnet publish "Studium-Users.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "Api/Studium-Users.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Stage 2: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
@@ -16,4 +20,4 @@ ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
 COPY --from=build /app/publish .
-ENTRYPOINT ["dotnet", "Studium-Users.dll"]
+ENTRYPOINT ["dotnet", "Studium-Users.Api.dll"]

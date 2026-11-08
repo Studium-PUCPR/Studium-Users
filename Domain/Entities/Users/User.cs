@@ -1,7 +1,6 @@
 using System.Text.RegularExpressions;
 using Studium_Users.Domain.Entities.AuditLogs;
 using Studium_Users.Domain.Exceptions;
-using Studium_Users.DTOs;
 
 namespace Studium_Users.Domain.Entities.Users;
 
@@ -181,16 +180,16 @@ public partial class User
         RecordAudit(AuditAction.UserUnblocked);
     }
 
-    public UserEventType ToggleBlock(string? reason, string? adminUserId = null)
+    public bool ToggleBlock(string? reason, string? adminUserId = null)
     {
         if (IsBlocked)
         {
             Unblock();
-            return UserEventType.UserUnblocked;
+            return false;
         }
 
         Block(reason, adminUserId);
-        return UserEventType.UserBlocked;
+        return true;
     }
 
     public void RecordReservationCreated() => TotalReservations30Days++;

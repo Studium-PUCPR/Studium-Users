@@ -25,11 +25,11 @@ docker run --name studium-users-db \
 ### 2. Restore & Run the Application
 ```bash
 dotnet restore
-dotnet run
+dotnet run --project Api/Studium-Users.Api.csproj
 ```
 Once running in `Development` mode, open the interactive API reference at `http://localhost:5155/scalar/v1`.
 
 ### 3. Run Unit Tests
 ```bash
-dotnet test Tests/Studium-Users.Tests.csproj
+dotnet test
 ```

@@ -1,6 +1,6 @@
 using Studium_Users.Domain.Entities.Users;
 
-namespace Studium_Users.DTOs;
+namespace Studium_Users.Services.DTOs;
 
 /// <summary>
 /// Request payload for updating a user's editable profile fields. Read-only.

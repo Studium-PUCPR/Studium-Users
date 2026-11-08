@@ -1,7 +1,6 @@
 using Studium_Users.Domain.Entities.AuditLogs;
 using Studium_Users.Domain.Entities.Users;
 using Studium_Users.Domain.Exceptions;
-using Studium_Users.DTOs;
 using Xunit;
 
 namespace Studium_Users.Tests.Domain;
@@ -157,12 +156,12 @@ public class UserTests
     {
         var user = CreateSampleUser();
 
-        var firstEvent = user.ToggleBlock("3 no-shows", adminUserId: "usr-admin");
-        Assert.Equal(UserEventType.UserBlocked, firstEvent);
+        var isBlockedFirst = user.ToggleBlock("3 no-shows", adminUserId: "usr-admin");
+        Assert.True(isBlockedFirst);
         Assert.True(user.IsBlocked);
 
-        var secondEvent = user.ToggleBlock(null, adminUserId: "usr-admin");
-        Assert.Equal(UserEventType.UserUnblocked, secondEvent);
+        var isBlockedSecond = user.ToggleBlock(null, adminUserId: "usr-admin");
+        Assert.False(isBlockedSecond);
         Assert.False(user.IsBlocked);
     }
 

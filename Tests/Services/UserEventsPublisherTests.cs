@@ -1,6 +1,6 @@
 using System.Reflection;
 using Studium_Users.Domain.Entities.Users;
-using Studium_Users.DTOs;
+using Studium_Users.Services.DTOs;
 using Studium_Users.Services.UserEventsPublishers;
 using Wolverine;
 using Xunit;

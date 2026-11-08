@@ -4,7 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using Studium_Users.Domain.Entities.Users;
 using Studium_Users.Domain.Exceptions;
 
-namespace Studium_Users.Extensions;
+namespace Studium_Users.Api.Extensions;
 
 public static class AuthenticationExtensions
 {

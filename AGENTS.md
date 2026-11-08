@@ -56,21 +56,28 @@
 
 ## 2. `Studium-Users` Microservice State
 
-### 2.1 Project Structure (`./Studium-Users`)
-- [`Studium-Users.csproj`](./Studium-Users.csproj) — `.NET 10.0` Web API (`AWSSDK.SQS`, `Mapster`, `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.AspNetCore.OpenApi`, `Microsoft.EntityFrameworkCore.Design`, `Npgsql.EntityFrameworkCore.PostgreSQL`, `Scalar.AspNetCore`).
-- [`Program.cs`](./Program.cs) — Declarative composition root (~55 lines) wiring DI, `DomainExceptionHandler`, `AddStudiumMessaging()`, `AddStudiumAuthentication()`, OpenAPI + Scalar UI (`/scalar/v1`), `/health` probe, and startup migration/seeding.
-- [`Middleware/DomainExceptionHandler.cs`](./Middleware/DomainExceptionHandler.cs) — `.NET 10` `IExceptionHandler` mapping `DomainException` to `400 Bad Request` JSON responses.
-- [`Extensions/AuthenticationExtensions.cs`](./Extensions/AuthenticationExtensions.cs) & [`Extensions/MessagingExtensions.cs`](./Extensions/MessagingExtensions.cs) — Modular DI registration extensions for Cognito JWT Bearer auth (`RoleClaimType = "cognito:groups"`) and Wolverine SQS messaging.
-- [`Domain/Entities/Users/User.cs`](./Domain/Entities/Users/User.cs) & [`UserConfig.cs`](./Domain/Entities/Users/UserConfig.cs) — Rich `User` entity + `UserRole` enum + Fluent API configuration.
-- [`Domain/Entities/AuditLogs/AuditLog.cs`](./Domain/Entities/AuditLogs/AuditLog.cs) & [`AuditLogConfig.cs`](./Domain/Entities/AuditLogs/AuditLogConfig.cs) — Positional `AuditLog` `record` + `AuditAction` enum + Fluent API configuration.
-- [`Domain/Exceptions/DomainException.cs`](./Domain/Exceptions/DomainException.cs) — Domain exception carrying `ErrorCode` and `Message`.
-- [`DTOs/UserDtos.cs`](./DTOs/UserDtos.cs) & [`DTOs/EventDtos.cs`](./DTOs/EventDtos.cs) — Clean positional record DTOs mapped via `Mapster` and SQS event contracts (`BookingEventType` and `UserEventType` enums).
-- [`Data/UsersDbContext.cs`](./Data/UsersDbContext.cs) & [`Migrations/20261108045337_Initial_Migration.cs`](./Migrations/20261108045337_Initial_Migration.cs) — EF Core DbContext (`ApplyConfigurationsFromAssembly`) and initial PostgreSQL schema migration.
-- [`Controllers/UsersController.cs`](./Controllers/UsersController.cs) — Unified `/api/users` controller using `Mapster` (`Adapt`, `ProjectToType`) and PostgreSQL `EF.Functions.ILike` search.
-- [`Services/UserEventsPublishers/IUserEventsPublisher.cs`](./Services/UserEventsPublishers/IUserEventsPublisher.cs) & [`UserEventsPublisher.cs`](./Services/UserEventsPublishers/UserEventsPublisher.cs) — Resolves queue URLs via `sqsClient.GetQueueUrlAsync` (`AWS:SQS:OutboundQueueNames`) and publishes `UserStatusEvent` payloads.
-- [`Workers/BookingEventsConsumer.cs`](./Workers/BookingEventsConsumer.cs) — `BackgroundService` resolving `AWS:SQS:UsersQueueName` via `GetQueueUrlAsync` and polling for `ReservationCreated`, `ReservationCheckedIn`, `ReservationCancelled`, and `NoShowRecorded`.
-- [`Dockerfile`](./Dockerfile) & [`.dockerignore`](./.dockerignore) — Multi-stage `.NET 10.0` container image exposing port `8080` with build context exclusions.
-- [`Tests/Studium-Users.Tests.csproj`](./Tests/Studium-Users.Tests.csproj) — xUnit test suite covering `User` domain invariants/audit logs (`UserTests.cs`), Mapster DTO projections (`DtoMappingTests.cs`), and SQS event publishing (`UserEventsPublisherTests.cs`).
+### 2.1 Multi-Project Clean Architecture Structure (`./Studium-Users`)
+- [`Studium-Users.sln`](./Studium-Users.sln), [`Directory.Packages.props`](./Directory.Packages.props) & [`Directory.Build.props`](./Directory.Build.props) — Root solution file, Central Package Management (CPM), and shared MSBuild settings (`net10.0`, `Nullable`, `ImplicitUsings`).
+- **`Domain/` ([`Studium-Users.Domain.csproj`](./Domain/Studium-Users.Domain.csproj)):**
+  - [`Domain/Entities/Users/User.cs`](./Domain/Entities/Users/User.cs) & [`UserConfig.cs`](./Domain/Entities/Users/UserConfig.cs) — Rich `User` entity (`ToggleBlock`, `UpdateProfile`, counters) + `UserRole` enum + Fluent API configuration.
+  - [`Domain/Entities/AuditLogs/AuditLog.cs`](./Domain/Entities/AuditLogs/AuditLog.cs) & [`AuditLogConfig.cs`](./Domain/Entities/AuditLogs/AuditLogConfig.cs) — Positional `AuditLog` `record` + `AuditAction` enum + Fluent API configuration.
+  - [`Domain/Exceptions/DomainException.cs`](./Domain/Exceptions/DomainException.cs) — Domain exception carrying `ErrorCode` and `Message`.
+- **`Data/` ([`Studium-Users.Data.csproj`](./Data/Studium-Users.Data.csproj)):**
+  - [`Data/UsersDbContext.cs`](./Data/UsersDbContext.cs) & [`Data/Migrations/20261108045337_Initial_Migration.cs`](./Data/Migrations/20261108045337_Initial_Migration.cs) — EF Core DbContext (`ApplyConfigurationsFromAssembly(typeof(User).Assembly)`) and PostgreSQL migrations.
+- **`Services/` ([`Studium-Users.Services.csproj`](./Services/Studium-Users.Services.csproj)):**
+  - [`Services/DTOs/UserDtos.cs`](./Services/DTOs/UserDtos.cs) & [`Services/DTOs/EventDtos.cs`](./Services/DTOs/EventDtos.cs) — Positional record DTOs (`UserDetailDto`, `UserListItemDto`, `UpdateProfileRequest`, `BlockUserRequest`, `PagedUsersResponse<T>`) and SQS event contracts.
+  - [`Services/UserEventsPublishers/IUserEventsPublisher.cs`](./Services/UserEventsPublishers/IUserEventsPublisher.cs) & [`UserEventsPublisher.cs`](./Services/UserEventsPublishers/UserEventsPublisher.cs) — Publishes `UserStatusEvent` messages via Wolverine `IMessageBus`.
+  - [`Services/BookingEventsHandlers/BookingEventsHandler.cs`](./Services/BookingEventsHandlers/BookingEventsHandler.cs) — Wolverine handler updating 30-day activity counters from `BookingIntegrationEvent`.
+- **`Api/` ([`Studium-Users.Api.csproj`](./Api/Studium-Users.Api.csproj)):**
+  - [`Api/Program.cs`](./Api/Program.cs) — Declarative composition root (~55 lines) with startup `MigrateAsync()`, `DomainExceptionHandler`, `AddStudiumMessaging()`, `AddStudiumAuthentication()`, OpenAPI + Scalar (`/scalar/v1`), and `/health`.
+  - [`Api/Controllers/UsersController.cs`](./Api/Controllers/UsersController.cs) — Unified `/api/users` REST controller with JWT auto-provisioning and `IsSelfOrAdmin` IDOR protection.
+  - [`Api/Middleware/DomainExceptionHandler.cs`](./Api/Middleware/DomainExceptionHandler.cs) — `.NET 10` `IExceptionHandler` mapping `DomainException` to `400 Bad Request`.
+  - [`Api/Extensions/AuthenticationExtensions.cs`](./Api/Extensions/AuthenticationExtensions.cs) & [`Api/Extensions/MessagingExtensions.cs`](./Api/Extensions/MessagingExtensions.cs) — Modular DI & `ClaimsPrincipal` extensions.
+- **`Infra/` ([`Studium-Users.Infra.csproj`](./Infra/Studium-Users.Infra.csproj)):**
+  - [`Infra/Stacks/StudiumUsersStack.cs`](./Infra/Stacks/StudiumUsersStack.cs) — `.NET 10` C# AWS CDK stack (`Amazon.CDK.Lib` `2.275.0`) provisioning the institutional Amazon Cognito User Pool.
+- **`Tests/` ([`Studium-Users.Tests.csproj`](./Tests/Studium-Users.Tests.csproj)):**
+  - xUnit test suite (26 passing tests) covering `Domain`, `DTOs`, and `Services`.
+- [`Dockerfile`](./Dockerfile) & [`.dockerignore`](./.dockerignore) — Multi-stage `.NET 10.0` container image building `Api/Studium-Users.Api.csproj`.
 
 ---
 
@@ -139,3 +146,11 @@
 - **2026-11-08 (Added Startup Database Migration & .dockerignore):**
   - Added startup `await db.Database.MigrateAsync()` in `Program.cs` so containers automatically apply pending EF Core migrations on boot.
   - Added `.dockerignore` to exclude `bin/`, `obj/`, `.git/`, and `Tests/` from Docker builds.
+- **2026-11-08 (Created C# AWS CDK Infrastructure Project & Institutional Cognito Setup):**
+  - Created `Infra/Studium-Users.Infra.csproj`, `Infra/cdk.json`, `Infra/Program.cs`, and `Infra/Stacks/StudiumUsersStack.cs` using `Amazon.CDK.Lib` (`2.275.0`).
+  - Configured the Amazon Cognito User Pool (`studium-user-pool`) for institutional/SSO users (`SelfSignUpEnabled = false`), OAuth 2.0 Authorization Code Grant + Hosted UI domain (`studium-auth`), `custom:registration_number` attribute, and `Student`/`Professor`/`Administrator` groups.
+- **2026-11-08 (Added Central Package Management & Shared Build Props):**
+  - Added `Directory.Packages.props` (`ManagePackageVersionsCentrally=true`) and `Directory.Build.props` to centralize all NuGet package versions and target framework settings across `Studium-Users.csproj`, `Tests/Studium-Users.Tests.csproj`, and `Infra/Studium-Users.Infra.csproj`.
+- **2026-11-08 (Split Solution into 6 Clean Architecture Projects):**
+  - Split the codebase into `Domain/Studium-Users.Domain.csproj`, `Data/Studium-Users.Data.csproj`, `Services/Studium-Users.Services.csproj`, `Api/Studium-Users.Api.csproj`, `Infra/Studium-Users.Infra.csproj`, and `Tests/Studium-Users.Tests.csproj` under `Studium-Users.sln`.
+  - Removed all `<DefaultItemExcludes>` workarounds and decoupled `User.ToggleBlock` from `DTOs` so `Domain` has zero outward project dependencies.

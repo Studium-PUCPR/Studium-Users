@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Studium_Users.Migrations
+namespace Studium_Users.Data.Migrations
 {
     /// <inheritdoc />
     public partial class Initial_Migration : Migration

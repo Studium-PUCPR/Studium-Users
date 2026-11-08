@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Studium_Users.Domain.Exceptions;
 
-namespace Studium_Users.Middleware;
+namespace Studium_Users.Api.Middleware;
 
 public class DomainExceptionHandler : IExceptionHandler
 {

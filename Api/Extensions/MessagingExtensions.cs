@@ -1,9 +1,10 @@
 using Amazon;
-using Studium_Users.DTOs;
+using Studium_Users.Services.BookingEventsHandlers;
+using Studium_Users.Services.DTOs;
 using Wolverine;
 using Wolverine.AmazonSqs;
 
-namespace Studium_Users.Extensions;
+namespace Studium_Users.Api.Extensions;
 
 public static class MessagingExtensions
 {
@@ -11,6 +12,8 @@ public static class MessagingExtensions
     {
         builder.Host.UseWolverine(opts =>
         {
+            opts.Discovery.IncludeAssembly(typeof(BookingEventsHandler).Assembly);
+
             var awsRegion = builder.Configuration["AWS:Region"] ?? "us-east-1";
             opts.UseAmazonSqsTransport(cfg =>
             {

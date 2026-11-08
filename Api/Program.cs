@@ -1,9 +1,9 @@
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
+using Studium_Users.Api.Extensions;
+using Studium_Users.Api.Middleware;
 using Studium_Users.Data;
-using Studium_Users.Extensions;
-using Studium_Users.Middleware;
 using Studium_Users.Services.UserEventsPublishers;
 
 var builder = WebApplication.CreateBuilder(args);

@@ -2,14 +2,14 @@ using Mapster;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Studium_Users.Api.Extensions;
 using Studium_Users.Data;
 using Studium_Users.Domain.Entities.AuditLogs;
 using Studium_Users.Domain.Entities.Users;
-using Studium_Users.DTOs;
-using Studium_Users.Extensions;
+using Studium_Users.Services.DTOs;
 using Studium_Users.Services.UserEventsPublishers;
 
-namespace Studium_Users.Controllers;
+namespace Studium_Users.Api.Controllers;
 
 [ApiController]
 [Route("api/users")]
@@ -136,9 +136,10 @@ public class UsersController(
         if (user is null)
             return NotFound(new { error = "USER_NOT_FOUND", message = $"User '{id}' was not found." });
 
-        var eventType = user.ToggleBlock(request?.Reason, User.GetUserId());
+        var isNowBlocked = user.ToggleBlock(request?.Reason, User.GetUserId());
         await db.SaveChangesAsync(ct);
 
+        var eventType = isNowBlocked ? UserEventType.UserBlocked : UserEventType.UserUnblocked;
         await eventsPublisher.PublishUserStatusEventAsync(eventType, user, ct);
 
         return Ok(user.Adapt<UserDetailDto>());

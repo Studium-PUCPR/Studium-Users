@@ -1,6 +1,6 @@
 using Mapster;
 using Studium_Users.Domain.Entities.Users;
-using Studium_Users.DTOs;
+using Studium_Users.Services.DTOs;
 using Wolverine;
 
 namespace Studium_Users.Services.UserEventsPublishers;

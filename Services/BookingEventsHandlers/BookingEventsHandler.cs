@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Studium_Users.Data;
-using Studium_Users.DTOs;
+using Studium_Users.Services.DTOs;
 
 namespace Studium_Users.Services.BookingEventsHandlers;
 

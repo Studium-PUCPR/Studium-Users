@@ -1,6 +1,6 @@
 using Studium_Users.Domain.Entities.Users;
 
-namespace Studium_Users.DTOs;
+namespace Studium_Users.Services.DTOs;
 
 public enum BookingEventType
 {
