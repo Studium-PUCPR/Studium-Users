@@ -7,15 +7,12 @@ using Studium_Users.Data;
 using Studium_Users.Domain.Entities.AuditLogs;
 using Studium_Users.Domain.Entities.Users;
 using Studium_Users.Services.DTOs;
-using Studium_Users.Services.UserEventsPublishers;
 
 namespace Studium_Users.Api.Controllers;
 
 [ApiController]
 [Route("api/users")]
-public class UsersController(
-    UsersDbContext db,
-    IUserEventsPublisher eventsPublisher) : ControllerBase
+public class UsersController(UsersDbContext db) : ControllerBase
 {
     /// <summary>
     /// 1. GET /api/users - Admin paginated search and filter of users.
@@ -117,8 +114,6 @@ public class UsersController(
         user.UpdateProfile(request.PhoneNumber, request.NotifyReminders, request.NotifyConfirmations);
         await db.SaveChangesAsync(ct);
 
-        await eventsPublisher.PublishUserStatusEventAsync(UserEventType.UserProfileUpdated, user, ct);
-
         return Ok(user.Adapt<UserDetailDto>());
     }
 
@@ -136,11 +131,8 @@ public class UsersController(
         if (user is null)
             return NotFound(new { error = "USER_NOT_FOUND", message = $"User '{id}' was not found." });
 
-        var isNowBlocked = user.ToggleBlock(request?.Reason, User.GetUserId());
+        user.ToggleBlock(request?.Reason, User.GetUserId());
         await db.SaveChangesAsync(ct);
-
-        var eventType = isNowBlocked ? UserEventType.UserBlocked : UserEventType.UserUnblocked;
-        await eventsPublisher.PublishUserStatusEventAsync(eventType, user, ct);
 
         return Ok(user.Adapt<UserDetailDto>());
     }

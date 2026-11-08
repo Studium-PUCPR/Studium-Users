@@ -26,7 +26,7 @@
 - **Decision:** Keep `db.Database.MigrateAsync()` on startup; the initial EF Core migration (`Migrations/20261108045337_Initial_Migration.cs`) is generated for the finalized `Users` and `AuditLogs` schema.
 
 ### 1.4 Infrastructure & CI/CD Organization
-- **Conclusion:** Rather than isolating all Kubernetes/AWS infrastructure and CI/CD configurations into a separate `Studium-Infra` repository, **each microservice repository will contain its own relevant infrastructure manifests and CI/CD workflow YAMLs** (to be implemented in a later phase).
+- **Conclusion:** All shared AWS CDK infrastructure (`NetworkConstruct`, `CognitoConstruct`, `DatabaseConstruct`, `MessagingConstruct`, and `EksConstruct`) is centralized in the dedicated **`Studium-Infra`** repository (`../Studium-Infra`), while each microservice repository (`Studium-Users`, `Studium-Catalog`, `Studium-Booking`, `Studium-Notifications`) contains its own `Dockerfile`, Kubernetes `k8s/` manifests, and `.github/workflows/` CI/CD pipeline.
 
 ### 1.5 Domain Entities, Fluent API Configurations, Enums, Mapping & Auditing
 - **1-to-1 Folder & Namespace Alignment:**
@@ -66,15 +66,14 @@
   - [`Data/UsersDbContext.cs`](./Data/UsersDbContext.cs) & [`Data/Migrations/20261108045337_Initial_Migration.cs`](./Data/Migrations/20261108045337_Initial_Migration.cs) — EF Core DbContext (`ApplyConfigurationsFromAssembly(typeof(User).Assembly)`) and PostgreSQL migrations.
 - **`Services/` ([`Studium-Users.Services.csproj`](./Services/Studium-Users.Services.csproj)):**
   - [`Services/DTOs/UserDtos.cs`](./Services/DTOs/UserDtos.cs) & [`Services/DTOs/EventDtos.cs`](./Services/DTOs/EventDtos.cs) — Positional record DTOs (`UserDetailDto`, `UserListItemDto`, `UpdateProfileRequest`, `BlockUserRequest`, `PagedUsersResponse<T>`) and SQS event contracts.
-  - [`Services/UserEventsPublishers/IUserEventsPublisher.cs`](./Services/UserEventsPublishers/IUserEventsPublisher.cs) & [`UserEventsPublisher.cs`](./Services/UserEventsPublishers/UserEventsPublisher.cs) — Publishes `UserStatusEvent` messages via Wolverine `IMessageBus`.
   - [`Services/BookingEventsHandlers/BookingEventsHandler.cs`](./Services/BookingEventsHandlers/BookingEventsHandler.cs) — Wolverine handler updating 30-day activity counters from `BookingIntegrationEvent`.
 - **`Api/` ([`Studium-Users.Api.csproj`](./Api/Studium-Users.Api.csproj)):**
   - [`Api/Program.cs`](./Api/Program.cs) — Declarative composition root (~55 lines) with startup `MigrateAsync()`, `DomainExceptionHandler`, `AddStudiumMessaging()`, `AddStudiumAuthentication()`, OpenAPI + Scalar (`/scalar/v1`), and `/health`.
   - [`Api/Controllers/UsersController.cs`](./Api/Controllers/UsersController.cs) — Unified `/api/users` REST controller with JWT auto-provisioning and `IsSelfOrAdmin` IDOR protection.
   - [`Api/Middleware/DomainExceptionHandler.cs`](./Api/Middleware/DomainExceptionHandler.cs) — `.NET 10` `IExceptionHandler` mapping `DomainException` to `400 Bad Request`.
   - [`Api/Extensions/AuthenticationExtensions.cs`](./Api/Extensions/AuthenticationExtensions.cs) & [`Api/Extensions/MessagingExtensions.cs`](./Api/Extensions/MessagingExtensions.cs) — Modular DI & `ClaimsPrincipal` extensions.
-- **`Infra/` ([`Studium-Users.Infra.csproj`](./Infra/Studium-Users.Infra.csproj)):**
-  - [`Infra/Stacks/StudiumUsersStack.cs`](./Infra/Stacks/StudiumUsersStack.cs) — `.NET 10` C# AWS CDK stack (`Amazon.CDK.Lib` `2.275.0`) provisioning the institutional Amazon Cognito User Pool.
+- **Centralized CDK Repository (`../Studium-Infra`):**
+  - [`Studium-Infra.csproj`](../Studium-Infra/Studium-Infra.csproj) & [`Stacks/StudiumStack.cs`](../Studium-Infra/Stacks/StudiumStack.cs) — `.NET 10` C# AWS CDK project (`Amazon.CDK.Lib` `2.275.0`) provisioning `NetworkConstruct`, `CognitoConstruct`, `DatabaseConstruct`, and `MessagingConstruct` for the `Studium-PUCPR` organization.
 - **`Tests/` ([`Studium-Users.Tests.csproj`](./Tests/Studium-Users.Tests.csproj)):**
   - xUnit test suite (26 passing tests) covering `Domain`, `DTOs`, and `Services`.
 - [`Dockerfile`](./Dockerfile) & [`.dockerignore`](./.dockerignore) — Multi-stage `.NET 10.0` container image building `Api/Studium-Users.Api.csproj`.
@@ -154,3 +153,16 @@
 - **2026-11-08 (Split Solution into 6 Clean Architecture Projects):**
   - Split the codebase into `Domain/Studium-Users.Domain.csproj`, `Data/Studium-Users.Data.csproj`, `Services/Studium-Users.Services.csproj`, `Api/Studium-Users.Api.csproj`, `Infra/Studium-Users.Infra.csproj`, and `Tests/Studium-Users.Tests.csproj` under `Studium-Users.sln`.
   - Removed all `<DefaultItemExcludes>` workarounds and decoupled `User.ToggleBlock` from `DTOs` so `Domain` has zero outward project dependencies.
+- **2026-11-08 (Extracted CognitoConstruct & Simplified CDK Stack):**
+  - Extracted Cognito resources into `Infra/Constructs/CognitoConstruct.cs` so `Infra/Stacks/StudiumUsersStack.cs` remains a clean composition root.
+  - Referenced `Studium-Users.Domain` from `Infra` to use `Enum.GetNames<UserRole>()` with `UserPool.AddGroup` and `UserPool.UserPoolProviderUrl`.
+- **2026-11-08 (Evaluated Aurora DSQL vs. Standard RDS PostgreSQL & Added DatabaseConstruct):**
+  - Chose Standard RDS PostgreSQL 16 (`db.t4g.micro`, Single-AZ, 20 GB GP2, Free Tier eligible) in the Default VPC over Aurora DSQL (which lacks foreign keys, standard password auth, and multi-DDL transactions required by EF Core `MigrateAsync()`) and over Aurora Serverless v2 (no Free Tier).
+  - Created `Infra/Constructs/DatabaseConstruct.cs` and wired it into `Infra/Stacks/StudiumUsersStack.cs`.
+- **2026-11-08 (Centralized VPC into NetworkConstruct):**
+  - Created `Infra/Constructs/NetworkConstruct.cs` to resolve the shared `StudiumDefaultVpc` once, output `StudiumVpcId`, and pass `network.Vpc` into `DatabaseConstruct` and future compute constructs.
+- **2026-11-08 (Removed Outbound UserEventsPublisher & Added MessagingConstruct):**
+  - Removed `Services/UserEventsPublishers/`, `UserStatusEvent`, `UserEventType`, and `OutboundQueueNames` since `Studium-Users` only consumes inbound `BookingIntegrationEvent` messages from `studium-users-events-queue` (other services query `GET /api/users/{id}` directly for user permissions/preferences).
+  - Created `Infra/Constructs/MessagingConstruct.cs` provisioning `studium-users-events-queue` (`ReceiveMessageWaitTime = Duration.Seconds(20)`) and wired it into `Infra/Stacks/StudiumUsersStack.cs`.
+- **2026-11-08 (Extracted AWS CDK into Dedicated Studium-Infra Repository):**
+  - Moved the C# AWS CDK project out of `Studium-Users/Infra` into a dedicated repository at `../Studium-Infra` (`Studium-PUCPR/Studium-Infra`) so shared AWS resources (VPC, Cognito, RDS PostgreSQL, EKS, SQS) are managed centrally without cross-repo CloudFormation collisions.

@@ -43,18 +43,5 @@ public class DtoMappingTests
         Assert.Equal(1, detailDto.CompletedReservations30Days);
         Assert.Equal(1, detailDto.CancelledReservations30Days);
         Assert.Equal(3, detailDto.NoShowCount30Days);
-
-        var statusEvent = user.Adapt<UserStatusEvent>() with
-        {
-            EventType = UserEventType.UserBlocked,
-            OccurredAtUtc = DateTime.UtcNow
-        };
-        Assert.Equal(UserEventType.UserBlocked, statusEvent.EventType);
-        Assert.Equal(user.Id, statusEvent.Id);
-        Assert.Equal(user.Email, statusEvent.Email);
-        Assert.Equal(user.FullName, statusEvent.FullName);
-        Assert.Equal(user.Role, statusEvent.Role);
-        Assert.True(statusEvent.IsBlocked);
-        Assert.Equal("3 no-shows recorded.", statusEvent.BlockReason);
     }
 }

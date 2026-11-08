@@ -4,7 +4,6 @@ using Scalar.AspNetCore;
 using Studium_Users.Api.Extensions;
 using Studium_Users.Api.Middleware;
 using Studium_Users.Data;
-using Studium_Users.Services.UserEventsPublishers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,7 +13,6 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<UsersDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-builder.Services.AddScoped<IUserEventsPublisher, UserEventsPublisher>();
 builder.Services.AddExceptionHandler<DomainExceptionHandler>();
 builder.Services.AddProblemDetails();
 
