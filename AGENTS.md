@@ -14,11 +14,12 @@
 ### 1.2 Ingress, API Gateway & Inter-Service Communication
 - **Conclusion:**
   - Only a single entry point (Ingress / Frontend gateway) needs to be exposed to the internet; individual backend microservices (`Studium-Users`, `Studium-Catalog`, `Studium-Booking`, `Studium-Notifications`) do not need separate public exposure.
-  - Using `Frontend -> API Gateway -> Lambda -> SQS` is unnecessary complexity for this project. Instead, the frontend communicates via the single gateway (`Frontend -> Gateway/Ingress -> Microservice REST Endpoints`), and **microservice-to-microservice communication is handled asynchronously via Amazon SQS using the AWS SDK (`AWSSDK.SQS`)**.
+  - The frontend communicates via the single gateway (`Frontend -> Gateway/Ingress -> Microservice REST Endpoints`), and **microservice-to-microservice communication is handled asynchronously via Amazon SQS using Wolverine (`WolverineFx.AmazonSqs`)**.
 - **Decision:**
   - Expose a **single unified set of endpoints** under `/api/users` in [`UsersController.cs`](./Controllers/UsersController.cs) rather than splitting into separate public vs. internal controllers.
-  - Use `AWSSDK.SQS` with native **`sqsClient.GetQueueUrlAsync(queueName)`** (configuring queue names `UsersQueueName` and `OutboundQueueNames` in `appsettings.json` rather than hardcoded queue URLs) for both consuming inbound events (`BookingEventsConsumer`) and publishing outbound user status/preference events (`UserEventsPublisher`).
-  - Keep lightweight event contract DTOs (`EventDtos.cs`) per microservice repository rather than introducing a shared cross-repo NuGet package (since `Studium-Notifications` is Python FastAPI and independent repositories avoid private NuGet feed friction).
+  - Use **Wolverine (`Wolverine.AmazonSqs`)** with static pre-generated handlers (`TypeLoadMode.Static` in production via `codegen write` in `Dockerfile`), `.AutoProvision()` enabled, and a dedicated dead-letter queue (`wolverine-dead-letter-queue`).
+  - Keep lightweight event contract DTOs (`BookingIntegrationEvent.cs`) per microservice repository rather than introducing a shared cross-repo NuGet package (since `Studium-Notifications` is Python FastAPI and independent repositories avoid private NuGet feed friction).
+  - Outbound user status/preference publishing was eliminated because downstream services query `GET /api/users/{id}` directly for real-time validation.
   - Dropped `AWSSDK.CognitoIdentityProvider` and Cognito global sign-out on block (`RevokeCognitoSessionsAsync`) because JWT validation is handled by `JwtBearer` and blocked users only lose reservation privileges (RN09), not the ability to log in and view their profile.
 
 ### 1.3 Amazon RDS PostgreSQL & Schema Initialization
