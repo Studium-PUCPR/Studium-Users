@@ -69,7 +69,7 @@
 - [`Controllers/UsersController.cs`](./Controllers/UsersController.cs) — Unified `/api/users` controller using `Mapster` (`Adapt`, `ProjectToType`) and PostgreSQL `EF.Functions.ILike` search.
 - [`Services/UserEventsPublishers/IUserEventsPublisher.cs`](./Services/UserEventsPublishers/IUserEventsPublisher.cs) & [`UserEventsPublisher.cs`](./Services/UserEventsPublishers/UserEventsPublisher.cs) — Resolves queue URLs via `sqsClient.GetQueueUrlAsync` (`AWS:SQS:OutboundQueueNames`) and publishes `UserStatusEvent` payloads.
 - [`Workers/BookingEventsConsumer.cs`](./Workers/BookingEventsConsumer.cs) — `BackgroundService` resolving `AWS:SQS:UsersQueueName` via `GetQueueUrlAsync` and polling for `ReservationCreated`, `ReservationCheckedIn`, `ReservationCancelled`, and `NoShowRecorded`.
-- [`Dockerfile`](./Dockerfile) — Multi-stage `.NET 10.0` container image exposing port `8080`.
+- [`Dockerfile`](./Dockerfile) & [`.dockerignore`](./.dockerignore) — Multi-stage `.NET 10.0` container image exposing port `8080` with build context exclusions.
 - [`Tests/Studium-Users.Tests.csproj`](./Tests/Studium-Users.Tests.csproj) — xUnit test suite covering `User` domain invariants/audit logs (`UserTests.cs`), Mapster DTO projections (`DtoMappingTests.cs`), and SQS event publishing (`UserEventsPublisherTests.cs`).
 
 ---
@@ -136,3 +136,6 @@
   - Added `ClaimsPrincipal.ToUserEntity()` in `Extensions/AuthenticationExtensions.cs` and auto-provisioning on `GET /api/users/{id}` when a user requests their own profile for the first time after Cognito registration/login.
 - **2026-11-08 (Initial EF Core Migration):**
   - Generated `Migrations/20261108045337_Initial_Migration.cs` for the finalized `Users` and `AuditLogs` tables.
+- **2026-11-08 (Added Startup Database Migration & .dockerignore):**
+  - Added startup `await db.Database.MigrateAsync()` in `Program.cs` so containers automatically apply pending EF Core migrations on boot.
+  - Added `.dockerignore` to exclude `bin/`, `obj/`, `.git/`, and `Tests/` from Docker builds.
