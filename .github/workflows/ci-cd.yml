@@ -98,6 +98,8 @@ jobs:
             --from-literal=DefaultConnection="$CONNECTION_STRING" \
             --from-literal=CognitoAuthority="$COGNITO_AUTHORITY" \
             --from-literal=CognitoClientId="$COGNITO_CLIENT_ID" \
+            --from-literal=AwsAccessKeyId="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            --from-literal=AwsSecretAccessKey="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy to Kubernetes

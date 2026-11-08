@@ -189,3 +189,7 @@
   - Updated region default to `us-east-2` (Ohio) across `k8s/deployment.yaml`, `ci-cd.yml`, and `Studium-Infra` (aligning with AWS Brazil organizational resource provisioning).
 - **2026-11-08 (Switched to Standard IAM Access Keys for CI/CD):**
   - Updated `.github/workflows/ci-cd.yml` to authenticate using `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` secrets, avoiding OIDC identity provider creation restrictions.
+- **2026-11-08 (Injected AWS Credentials into K8s Pods for SQS Transport):**
+  - Added `AwsAccessKeyId` and `AwsSecretAccessKey` to `studium-users-secrets` secret generated in `ci-cd.yml`.
+  - Bound `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` into `k8s/deployment.yaml` container environment to allow Wolverine's Amazon SQS transport to authenticate without relying on EC2 IMDS hop limits.
+  - Adjusted probe startup tolerances (30s liveness, 15s readiness) and added failure diagnostic steps in CI/CD.

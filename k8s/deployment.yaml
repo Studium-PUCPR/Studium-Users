@@ -56,6 +56,16 @@ spec:
                 secretKeyRef:
                   name: studium-users-secrets
                   key: CognitoClientId
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: studium-users-secrets
+                  key: AwsAccessKeyId
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: studium-users-secrets
+                  key: AwsSecretAccessKey
           resources:
             requests:
               cpu: "100m"
