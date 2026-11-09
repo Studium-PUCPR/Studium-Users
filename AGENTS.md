@@ -13,7 +13,7 @@
 
 ### 1.2 Ingress, API Gateway & Inter-Service Communication (RabbitMQ vs SQS)
 - **Conclusion:**
-  - Only a single entry point (Ingress / Frontend gateway) needs to be exposed to the internet; individual backend microservices (`Studium-Users`, `Studium-Catalog`, `Studium-Booking`, `Studium-Notifications`, `Studium-Audit`) do not need separate public exposure.
+  - Only a single entry point (Ingress / Frontend gateway) needs to be exposed to the internet; individual backend microservices do not need separate public exposure.
   - The frontend communicates via the single gateway (`Frontend -> Gateway/Ingress -> Microservice REST Endpoints`), and **microservice-to-microservice communication is handled asynchronously via RabbitMQ using Wolverine (`WolverineFx.RabbitMQ`)**.
   - A legacy AWS SQS implementation is safely preserved on git branch `origin/sqs`.
 - **Decision:**
@@ -22,7 +22,6 @@
   - Listen to queue `studium-users-events-queue`.
   - Publish `UserStatusChangedEvent` to queue `studium-booking-events-queue`.
   - Publish `AuditIntegrationEvent` to queue `studium-audit-events-queue`.
-  - Keep lightweight event contract DTOs per microservice repository rather than introducing a shared cross-repo NuGet package.
 
 ### 1.3 Centralized Audit Decoupling & Inter-Service HTTP Communication
 - **Context:** Auditing was separated from `Studium-Users` into the dedicated `Studium-Audit` microservice to guarantee single responsibility and satisfy academic requirements for five distinct autonomous services with isolated databases.
@@ -30,6 +29,12 @@
   - Removed `AuditLogs` entity and table from `Studium-Users` via migration `20261109182659_Remove_AuditLogs_Table`.
   - Auditable actions (profile update, user blocked/unblocked) publish asynchronous `AuditIntegrationEvent` messages to `studium-audit-events-queue` via RabbitMQ so auditing never blocks user workflows.
   - User audit log queries (`GET /api/users/{id}/audit-logs`) synchronously delegate to `Studium-Audit` (`GET /api/audit/resources/{id}`) using a typed `IHttpClientFactory` named client (`AuditClient`) pointing to `http://studium-audit-service.studium.svc.cluster.local`.
+
+### 1.4 Ubiquitous Language & Decoupled Activity Subscriptions
+- **Context:** Naming internal handlers after sender services (`BookingEventsHandler`) introduced conceptual coupling that obscured domain responsibility.
+- **Decision:**
+  - Renamed `BookingEventsHandler` to `UserActivityHandler` in `Services/UserActivityHandlers/`.
+  - Subscribes to `UserActivityIntegrationEvent` (`[MessageIdentity("studium.users.user-activity")]`) to update `TotalReservations30Days`, `CompletedReservations30Days`, `CancelledReservations30Days`, and enforce the 5 no-shows suspension threshold.
 
 ---
 
@@ -52,8 +57,8 @@ Studium-Users/
 │   ├── UsersDbContext.cs              # EF Core PostgreSQL context applying entity configurations
 │   └── Migrations/                    # Initial database migration and Remove_AuditLogs_Table migration
 ├── Services/
-│   ├── DTOs/                          # UserDetailDto, BookingIntegrationEvent, UserStatusChangedEvent, AuditIntegrationEvent
-│   └── BookingEventsHandlers/         # Wolverine handler updating counters and auto-blocking on 5 no-shows
+│   ├── DTOs/                          # UserDetailDto, UserActivityIntegrationEvent, UserStatusChangedEvent, AuditIntegrationEvent
+│   └── UserActivityHandlers/          # Wolverine handler updating 30-day activity counters and auto-suspending on 5 no-shows
 └── Api/
     ├── Controllers/                   # UsersController with search, get by id, update profile, toggle block, audit logs
     ├── Extensions/                    # WebApplicationBuilder setup (Auth, RabbitMQ Messaging, DB)
@@ -66,17 +71,16 @@ Studium-Users/
 
 ## 3. Recent Changes History
 
+- **2026-11-09 (Ubiquitous Language Refactor — UserActivityHandler):**
+  - Renamed `BookingEventsHandler` to `UserActivityHandler` in `Services/UserActivityHandlers/`.
+  - Replaced `BookingIntegrationEvent` with `UserActivityIntegrationEvent` (`[MessageIdentity("studium.users.user-activity")]`) to decouple the message contract from service-specific naming.
+  - Cleaned up obsolete SQS configuration block from `appsettings.json`.
+  - Regenerated Wolverine static handlers (`UserActivityIntegrationEventHandler1310681706.cs`) and verified all 25 unit tests pass.
 - **2026-11-09 (Extracted Audit into Dedicated Studium-Audit Microservice):**
   - Removed `AuditLog` entity, `AuditLogConfig`, and `AuditLogs` DbSet from `Studium-Users`.
   - Scaffolded EF Core migration `20261109182659_Remove_AuditLogs_Table` to drop table `AuditLogs` from `studium_users`.
   - Configured asynchronous publishing of `AuditIntegrationEvent` to `studium-audit-events-queue` via Wolverine RabbitMQ.
   - Registered `AuditClient` with `IHttpClientFactory` in `Api/Program.cs` to synchronously query `Studium-Audit` at `/api/audit/resources/{id}` for `GET /api/users/{id}/audit-logs`.
-  - Updated unit tests, re-generated static Wolverine handlers, and verified all 25 unit tests pass.
 - **2026-11-09 (Migrated Messaging from AWS SQS to RabbitMQ):**
   - Replaced `WolverineFx.AmazonSqs` with `WolverineFx.RabbitMQ` (v6.63.0) centrally in `Directory.Packages.props`, `Api/Studium-Users.Api.csproj`, and `Services/Studium-Users.Services.csproj`.
-  - Updated `Api/Extensions/MessagingExtensions.cs` to configure `opts.UseRabbitMq(...)` connecting to `studium-rabbitmq-service.studium.svc.cluster.local:5672` with `.AutoProvision()`.
-  - Added RabbitMQ Deployment & ClusterIP Service manifests directly into `k8s/deployment.yaml`.
-  - Re-generated static Wolverine handlers using `codegen write`. Verified 25 unit tests passed cleanly.
   - SQS version preserved on branch `origin/sqs`.
-- **2026-11-08 (Fix AuditLog Concurrency Exception):**
-  - Configured `AuditLogConfig` with `ValueGeneratedNever()` and overrode `SaveChangesAsync` in `UsersDbContext` to enforce `EntityState.Added` for immutable audit entries.

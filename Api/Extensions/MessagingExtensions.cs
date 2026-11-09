@@ -1,5 +1,5 @@
-using Studium_Users.Services.BookingEventsHandlers;
 using Studium_Users.Services.DTOs;
+using Studium_Users.Services.UserActivityHandlers;
 using Wolverine;
 using Wolverine.RabbitMQ;
 
@@ -11,7 +11,7 @@ public static class MessagingExtensions
     {
         builder.Host.UseWolverine(opts =>
         {
-            opts.Discovery.IncludeAssembly(typeof(BookingEventsHandler).Assembly);
+            opts.Discovery.IncludeAssembly(typeof(UserActivityHandler).Assembly);
 
             var rabbitConnectionString = builder.Configuration["RabbitMQ:ConnectionString"]
                 ?? builder.Configuration["RABBITMQ_URL"]

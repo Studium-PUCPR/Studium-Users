@@ -2,7 +2,7 @@ using Wolverine.Attributes;
 
 namespace Studium_Users.Services.DTOs;
 
-public enum BookingEventType
+public enum UserActivityType
 {
     ReservationCreated,
     ReservationCheckedIn,
@@ -11,12 +11,13 @@ public enum BookingEventType
 }
 
 /// <summary>
-/// Inbound SQS message payload received from Studium-Booking when reservation events occur. Read-only.
+/// Inbound message payload received from campus services when user activity occurs. Read-only.
 /// </summary>
-public record BookingIntegrationEvent(
-    BookingEventType EventType,
+[MessageIdentity("studium.users.user-activity")]
+public record UserActivityIntegrationEvent(
+    UserActivityType EventType,
     string UserId,
-    string? ReservationId,
+    string? ActivityReferenceId,
     DateTime OccurredAtUtc
 );
 

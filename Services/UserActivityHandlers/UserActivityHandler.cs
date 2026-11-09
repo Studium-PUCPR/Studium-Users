@@ -4,37 +4,40 @@ using Studium_Users.Data;
 using Studium_Users.Services.DTOs;
 using Wolverine;
 
-namespace Studium_Users.Services.BookingEventsHandlers;
+namespace Studium_Users.Services.UserActivityHandlers;
 
-public class BookingEventsHandler(
+/// <summary>
+/// Subscribes to campus activity events to update 30-day user activity counters and enforce account standing policies.
+/// </summary>
+public class UserActivityHandler(
     UsersDbContext db,
     IMessageBus messageBus,
-    ILogger<BookingEventsHandler> logger)
+    ILogger<UserActivityHandler> logger)
 {
     public const int MaxNoShowThreshold = 5;
 
-    public async Task HandleAsync(BookingIntegrationEvent bookingEvent, CancellationToken ct = default)
+    public async Task HandleAsync(UserActivityIntegrationEvent activityEvent, CancellationToken ct = default)
     {
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == bookingEvent.UserId, ct);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == activityEvent.UserId, ct);
         if (user is null)
         {
-            logger.LogWarning("SQS Event {EventType}: User {UserId} not found in studium_users.",
-                bookingEvent.EventType, bookingEvent.UserId);
-            throw new KeyNotFoundException($"User '{bookingEvent.UserId}' was not found in studium_users.");
+            logger.LogWarning("Event {EventType}: User {UserId} not found in studium_users.",
+                activityEvent.EventType, activityEvent.UserId);
+            throw new KeyNotFoundException($"User '{activityEvent.UserId}' was not found in studium_users.");
         }
 
-        switch (bookingEvent.EventType)
+        switch (activityEvent.EventType)
         {
-            case BookingEventType.ReservationCreated:
+            case UserActivityType.ReservationCreated:
                 user.RecordReservationCreated();
                 break;
-            case BookingEventType.ReservationCheckedIn:
+            case UserActivityType.ReservationCheckedIn:
                 user.RecordReservationCheckedIn();
                 break;
-            case BookingEventType.ReservationCancelled:
+            case UserActivityType.ReservationCancelled:
                 user.RecordReservationCancelled();
                 break;
-            case BookingEventType.NoShowRecorded:
+            case UserActivityType.NoShowRecorded:
                 user.RecordNoShow();
                 if (user.NoShowCount30Days >= MaxNoShowThreshold && !user.IsBlocked)
                 {
@@ -52,8 +55,8 @@ public class BookingEventsHandler(
                 }
                 break;
             default:
-                logger.LogWarning("Unrecognized BookingEventType {EventType} for User {UserId}.",
-                    bookingEvent.EventType, bookingEvent.UserId);
+                logger.LogWarning("Unrecognized UserActivityType {EventType} for User {UserId}.",
+                    activityEvent.EventType, activityEvent.UserId);
                 return;
         }
 
