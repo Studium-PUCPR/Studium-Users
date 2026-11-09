@@ -35,6 +35,7 @@ public record UserStatusChangedEvent(
 /// <summary>
 /// Outbound message payload published to Studium-Audit.
 /// </summary>
+[MessageIdentity("studium.audit.integration-event")]
 public record AuditIntegrationEvent(
     string ServiceSource,
     string ResourceId,

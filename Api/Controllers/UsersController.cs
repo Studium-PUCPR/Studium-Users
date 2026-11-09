@@ -12,7 +12,7 @@ namespace Studium_Users.Api.Controllers;
 
 [ApiController]
 [Route("api/users")]
-public class UsersController(UsersDbContext db, IMessageBus messageBus) : ControllerBase
+public class UsersController(UsersDbContext db, IMessageBus messageBus, ILogger<UsersController> logger) : ControllerBase
 {
     /// <summary>
     /// 1. GET /api/users - Admin paginated search and filter of users.
@@ -169,23 +169,45 @@ public class UsersController(UsersDbContext db, IMessageBus messageBus) : Contro
         [FromServices] IHttpClientFactory httpClientFactory,
         CancellationToken ct = default)
     {
-        try
+        var client = httpClientFactory.CreateClient("AuditClient");
+        if (Request.Headers.TryGetValue("Authorization", out var authHeader) && !string.IsNullOrWhiteSpace(authHeader))
         {
-            var client = httpClientFactory.CreateClient("AuditClient");
-            var logs = await client.GetFromJsonAsync<List<AuditLogDto>>($"/api/audit/resources/{id}", ct);
-            var results = logs?.Select(l => new AuditLogEntryDto(
-                l.Id,
-                l.ResourceId,
-                l.ActorId,
-                l.Action,
-                l.MetadataJson,
-                l.TimestampUtc)).ToList() ?? [];
+            client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", authHeader.ToString());
+        }
 
-            return Ok(results);
-        }
-        catch
+        const int maxAttempts = 3;
+        var delays = new[] { TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(1000) };
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            return Ok(Array.Empty<AuditLogEntryDto>());
+            try
+            {
+                var response = await client.GetAsync($"/api/audit/resources/{id}", ct);
+                response.EnsureSuccessStatusCode();
+
+                var logs = await response.Content.ReadFromJsonAsync<List<AuditLogDto>>(cancellationToken: ct);
+                var results = logs?.Select(l => new AuditLogEntryDto(
+                    l.Id,
+                    l.ResourceId,
+                    l.ActorId,
+                    l.Action,
+                    l.MetadataJson,
+                    l.TimestampUtc)).ToList() ?? [];
+
+                return Ok(results);
+            }
+            catch (Exception ex) when (attempt < maxAttempts && !ct.IsCancellationRequested)
+            {
+                logger.LogWarning(ex, "Attempt {Attempt} to query audit logs for user {UserId} failed. Retrying in {Delay}ms...",
+                    attempt, id, delays[attempt - 1].TotalMilliseconds);
+                await Task.Delay(delays[attempt - 1], ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Final attempt {Attempt} to query audit logs for user {UserId} failed", attempt, id);
+            }
         }
+
+        return Ok(Array.Empty<AuditLogEntryDto>());
     }
 }

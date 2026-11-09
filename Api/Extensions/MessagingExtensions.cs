@@ -27,6 +27,8 @@ public static class MessagingExtensions
 
             var auditQueueName = builder.Configuration["RabbitMQ:AuditQueueName"] ?? "studium-audit-events-queue";
             opts.PublishMessage<AuditIntegrationEvent>().ToRabbitQueue(auditQueueName);
+
+            opts.Policies.AutoApplyTransactions();
         });
     }
 }

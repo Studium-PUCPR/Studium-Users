@@ -21,7 +21,8 @@
   - Use **Wolverine (`Wolverine.RabbitMQ`)** with static pre-generated handlers (`TypeLoadMode.Static` in production via `codegen write` in `Dockerfile`), `.AutoProvision()` enabled, connecting to `amqp://studium:StudiumRabbitMQ2026!@studium-rabbitmq-service.studium.svc.cluster.local:5672`.
   - Listen to queue `studium-users-events-queue`.
   - Publish `UserStatusChangedEvent` to queue `studium-booking-events-queue`.
-  - Publish `AuditIntegrationEvent` to queue `studium-audit-events-queue`.
+  - Publish `AuditIntegrationEvent` (`[MessageIdentity("studium.audit.integration-event")]`) to queue `studium-audit-events-queue`.
+  - Configured transactional outbox via `opts.Policies.AutoApplyTransactions()`.
 
 ### 1.3 Centralized Audit Decoupling & Inter-Service HTTP Communication
 - **Context:** Auditing was separated from `Studium-Users` into the dedicated `Studium-Audit` microservice to guarantee single responsibility and satisfy academic requirements for five distinct autonomous services with isolated databases.
@@ -29,6 +30,8 @@
   - Removed `AuditLogs` entity and table from `Studium-Users` via migration `20261109182659_Remove_AuditLogs_Table`.
   - Auditable actions (profile update, user blocked/unblocked) publish asynchronous `AuditIntegrationEvent` messages to `studium-audit-events-queue` via RabbitMQ so auditing never blocks user workflows.
   - User audit log queries (`GET /api/users/{id}/audit-logs`) synchronously delegate to `Studium-Audit` (`GET /api/audit/resources/{id}`) using a typed `IHttpClientFactory` named client (`AuditClient`) pointing to `http://studium-audit-service.studium.svc.cluster.local`.
+  - Forward incoming caller `Authorization` header to `AuditClient` to satisfy RBAC in `Studium-Audit`.
+  - Wrapped HTTP queries in a 3-attempt exponential backoff retry policy (200ms, 500ms, 1000ms).
 
 ### 1.4 Ubiquitous Language & Decoupled Activity Subscriptions
 - **Context:** Naming internal handlers after sender services (`BookingEventsHandler`) introduced conceptual coupling that obscured domain responsibility.
@@ -38,17 +41,9 @@
 
 ---
 
-## 2. Project Structure & File Map
-
+## 2. Directory Structure & Key Files
 ```
 Studium-Users/
-├── Directory.Build.props              # Enforces net10.0, Nullable, ImplicitUsings, TreatWarningsAsErrors
-├── Directory.Packages.props           # Central Package Management (CPM) pinning dependencies
-├── Dockerfile                         # Multi-stage container build with static Wolverine pre-codegen
-├── k8s/
-│   └── deployment.yaml                # Namespace, ConfigMap, Deployment, Service, HPA, and RabbitMQ
-├── .github/workflows/
-│   └── ci-cd.yml                      # CI/CD pipeline building, testing, pushing to ECR and deploying to EKS
 ├── Domain/
 │   ├── Common/                        # BaseEntity, ValueObject, DomainException
 │   └── Entities/
@@ -71,6 +66,11 @@ Studium-Users/
 
 ## 3. Recent Changes History
 
+- **2026-11-09 (Resilient Audit Forwarding, Message Identity & Outbox Transactions):**
+  - Updated `GetUserAuditLogs` in `UsersController` to forward the incoming `Authorization` header to `AuditClient` and apply a 3-attempt exponential backoff retry.
+  - Added `[MessageIdentity("studium.audit.integration-event")]` to `AuditIntegrationEvent` in `Services/DTOs/EventDtos.cs`.
+  - Enabled transactional outbox via `opts.Policies.AutoApplyTransactions()` in `MessagingExtensions.cs`.
+  - Regenerated Wolverine static handlers and verified all 25 unit tests pass.
 - **2026-11-09 (Ubiquitous Language Refactor — UserActivityHandler):**
   - Renamed `BookingEventsHandler` to `UserActivityHandler` in `Services/UserActivityHandlers/`.
   - Replaced `BookingIntegrationEvent` with `UserActivityIntegrationEvent` (`[MessageIdentity("studium.users.user-activity")]`) to decouple the message contract from service-specific naming.
