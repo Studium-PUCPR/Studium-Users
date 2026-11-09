@@ -104,7 +104,7 @@ public class UsersController(UsersDbContext db, IMessageBus messageBus, ILogger<
         if (user.CheckAutoUnblock(nowUtc))
         {
             stateChanged = true;
-            await messageBus.PublishAsync(new UserStatusChangedEvent(user.Id, false, null, nowUtc));
+            await messageBus.PublishAsync(new UserStatusChangedEvent(user.Id, false, null, nowUtc, Guid.NewGuid()));
         }
 
         if (stateChanged)
@@ -141,7 +141,8 @@ public class UsersController(UsersDbContext db, IMessageBus messageBus, ILogger<
             ActorId: User.GetUserId(),
             Action: "ProfileUpdated",
             MetadataJson: $"{{\"phoneNumber\":\"{user.PhoneNumber}\"}}",
-            TimestampUtc: DateTime.UtcNow));
+            TimestampUtc: DateTime.UtcNow,
+            EventId: Guid.NewGuid()));
 
         return Ok(user.Adapt<UserDetailDto>());
     }
@@ -167,7 +168,8 @@ public class UsersController(UsersDbContext db, IMessageBus messageBus, ILogger<
             user.Id,
             user.IsBlocked,
             user.BlockReason,
-            DateTime.UtcNow));
+            DateTime.UtcNow,
+            Guid.NewGuid()));
 
         await messageBus.PublishAsync(new AuditIntegrationEvent(
             ServiceSource: "Users",
@@ -175,7 +177,8 @@ public class UsersController(UsersDbContext db, IMessageBus messageBus, ILogger<
             ActorId: User.GetUserId(),
             Action: user.IsBlocked ? "UserBlocked" : "UserUnblocked",
             MetadataJson: $"{{\"reason\":\"{user.BlockReason}\"}}",
-            TimestampUtc: DateTime.UtcNow));
+            TimestampUtc: DateTime.UtcNow,
+            EventId: Guid.NewGuid()));
 
         return Ok(user.Adapt<UserDetailDto>());
     }

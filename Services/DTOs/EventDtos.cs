@@ -23,14 +23,15 @@ public record UserActivityIntegrationEvent(
 );
 
 /// <summary>
-/// Outbound SQS message payload published to Studium-Booking when user block status changes.
+/// Outbound message payload published to Studium-Booking when user block status changes.
 /// </summary>
 [MessageIdentity("studium.users.user-status-changed")]
 public record UserStatusChangedEvent(
     string UserId,
     bool IsBlocked,
     string? BlockReason,
-    DateTime OccurredAtUtc
+    DateTime OccurredAtUtc,
+    Guid? EventId = null
 );
 
 /// <summary>
@@ -43,5 +44,6 @@ public record AuditIntegrationEvent(
     string ActorId,
     string Action,
     string? MetadataJson = null,
-    DateTime? TimestampUtc = null
+    DateTime? TimestampUtc = null,
+    Guid? EventId = null
 );

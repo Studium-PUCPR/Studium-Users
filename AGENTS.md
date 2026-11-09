@@ -19,6 +19,7 @@
   - Publish `UserStatusChangedEvent` to queue `studium-booking-events-queue`.
   - Publish `AuditIntegrationEvent` (`[MessageIdentity("studium.audit.integration-event")]`) to queue `studium-audit-events-queue`.
   - Configured transactional outbox via `opts.Policies.AutoApplyTransactions()`.
+  - Outbound EventId Propagation: All published events carry a deterministic `EventId: Guid.NewGuid()` for distributed deduplication.
   - Poison Message & Dead-Letter Handling: Configured Wolverine transient exception retries (`NpgsqlException`, `TimeoutException`, `HttpRequestException`) with exponential cooldowns and unhandled errors routing to `.error` queue.
 
 ### 1.3 Centralized Audit Decoupling & Ingress Direct Routing
@@ -48,7 +49,7 @@
 - **Decision:**
   - Added `UserOptions` (`MaxNoShowsBeforeSuspension = 3`, `SuspensionDays = 7`) bound to configuration section `UserOptions`.
   - Added `BlockedUntilUtc` to `User` entity and EF Core migration `20261109215459_Add_InboxMessages_And_BlockedUntilUtc`.
-  - Implemented `CheckAutoUnblock(nowUtc)` on `User` entity, executed during profile retrieval (`GetUserById`). If suspension expired, user is automatically unblocked and changes persisted.
+  - Implemented `CheckAutoUnblock(nowUtc)` on `User` entity, executed during profile retrieval (`GetUserById`) AND event ingestion (`UserActivityHandler`). If suspension expired, user is automatically unblocked, status event published, and changes persisted.
 
 ### 1.8 Dynamic CORS Configuration
 - **Decision:** Created reusable `CorsExtensions.AddStudiumCors(IConfiguration)` reading comma-separated allowed origins from `Cors:AllowedOrigins` or environment variable `CORS__ALLOWEDORIGINS` (defaulting to allow all for local development).
@@ -69,7 +70,7 @@ Studium-Users/
 ├── Services/
 │   ├── DTOs/                          # UserDetailDto, UserListItemDto, UserActivityIntegrationEvent, UserStatusChangedEvent, AuditIntegrationEvent
 │   ├── Options/                       # UserOptions (MaxNoShowsBeforeSuspension, SuspensionDays)
-│   └── UserActivityHandlers/          # Wolverine handler with Inbox deduplication, throttled lazy pruning, and dynamic options
+│   └── UserActivityHandlers/          # Wolverine handler with Inbox deduplication, throttled lazy pruning, auto-unblock check, and dynamic options
 └── Api/
     ├── Controllers/                   # UsersController with search, get by id, update profile, toggle block
     ├── Extensions/                    # WebApplicationBuilder setup (Auth, Messaging, CorsExtensions, DatabaseHealthCheck)
@@ -82,6 +83,11 @@ Studium-Users/
 
 ## 3. Recent Changes History
 
+- **2026-11-09 (EventId Propagation & Handler Auto-Unblock Integration):**
+  - Added `EventId: Guid? = null` to `UserStatusChangedEvent` and `AuditIntegrationEvent`.
+  - Ensured `EventId: Guid.NewGuid()` is propagated in all event publications in `UsersController` and `UserActivityHandler`.
+  - Added `user.CheckAutoUnblock(nowUtc)` check in `UserActivityHandler` to lift expired suspensions during message ingestion.
+  - Verified 29/29 unit tests pass.
 - **2026-11-09 (Inbox Deduplication, Temporary Suspensions, Audit Proxy Removal & Dynamic CORS):**
   - Added `InboxMessage` entity and `InboxMessages` DbSet to store processed event IDs.
   - Implemented event deduplication and 6-hour throttled lazy pruning in `UserActivityHandler`.

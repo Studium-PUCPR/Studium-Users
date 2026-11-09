@@ -47,6 +47,18 @@ public class UserActivityHandler(
 
         user.EnsureMonthlyActivityWindow(activityEvent.OccurredAtUtc);
 
+        var nowUtc = DateTime.UtcNow;
+        if (user.CheckAutoUnblock(nowUtc))
+        {
+            await messageBus.PublishAsync(new UserStatusChangedEvent(
+                user.Id,
+                false,
+                null,
+                nowUtc,
+                Guid.NewGuid()));
+            logger.LogInformation("User {UserId} suspension automatically expired and was lifted upon activity processing.", user.Id);
+        }
+
         switch (activityEvent.EventType)
         {
             case UserActivityType.ReservationCreated:
@@ -71,7 +83,8 @@ public class UserActivityHandler(
                         user.Id,
                         true,
                         blockReason,
-                        DateTime.UtcNow));
+                        DateTime.UtcNow,
+                        Guid.NewGuid()));
 
                     logger.LogWarning("User {UserId} reached {Threshold} no-shows and was suspended for {Days} days.",
                         user.Id, maxNoShows, suspensionDays);
