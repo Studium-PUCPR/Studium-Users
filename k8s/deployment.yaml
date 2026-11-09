@@ -12,6 +12,7 @@ data:
   ASPNETCORE_ENVIRONMENT: "Production"
   AWS__Region: "us-east-2"
   AWS__SQS__UsersQueueName: "studium-users-events-queue"
+  AWS__SQS__BookingQueueName: "studium-booking-events-queue"
 ---
 apiVersion: apps/v1
 kind: Deployment

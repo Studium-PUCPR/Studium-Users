@@ -8,11 +8,13 @@ using Studium_Users.Domain.Entities.AuditLogs;
 using Studium_Users.Domain.Entities.Users;
 using Studium_Users.Services.DTOs;
 
+using Wolverine;
+
 namespace Studium_Users.Api.Controllers;
 
 [ApiController]
 [Route("api/users")]
-public class UsersController(UsersDbContext db) : ControllerBase
+public class UsersController(UsersDbContext db, IMessageBus messageBus) : ControllerBase
 {
     /// <summary>
     /// 1. GET /api/users - Admin paginated search and filter of users.
@@ -133,6 +135,12 @@ public class UsersController(UsersDbContext db) : ControllerBase
 
         user.ToggleBlock(request?.Reason, User.GetUserId());
         await db.SaveChangesAsync(ct);
+
+        await messageBus.PublishAsync(new UserStatusChangedEvent(
+            user.Id,
+            user.IsBlocked,
+            user.BlockReason,
+            DateTime.UtcNow));
 
         return Ok(user.Adapt<UserDetailDto>());
     }

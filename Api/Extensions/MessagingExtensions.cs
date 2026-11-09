@@ -1,5 +1,6 @@
 using Amazon;
 using Studium_Users.Services.BookingEventsHandlers;
+using Studium_Users.Services.DTOs;
 using Wolverine;
 using Wolverine.AmazonSqs;
 
@@ -26,6 +27,12 @@ public static class MessagingExtensions
             if (!string.IsNullOrWhiteSpace(usersQueueName))
             {
                 opts.ListenToSqsQueue(usersQueueName);
+            }
+
+            var bookingQueueName = builder.Configuration["AWS:SQS:BookingQueueName"];
+            if (!string.IsNullOrWhiteSpace(bookingQueueName))
+            {
+                opts.PublishMessage<UserStatusChangedEvent>().ToSqsQueue(bookingQueueName);
             }
         });
     }
