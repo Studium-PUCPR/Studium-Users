@@ -11,8 +11,10 @@ metadata:
 data:
   ASPNETCORE_ENVIRONMENT: "Production"
   AWS__Region: "us-east-2"
-  AWS__SQS__UsersQueueName: "studium-users-events-queue"
-  AWS__SQS__BookingQueueName: "studium-booking-events-queue"
+  RabbitMQ__ConnectionString: "amqp://studium:StudiumRabbitMQ2026!@studium-rabbitmq-service.studium.svc.cluster.local:5672"
+  RabbitMQ__UsersQueueName: "studium-users-events-queue"
+  RabbitMQ__BookingQueueName: "studium-booking-events-queue"
+  RabbitMQ__NotificationsQueueName: "studium-notifications-queue"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -124,3 +126,77 @@ spec:
         target:
           type: Utilization
           averageUtilization: 90
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: studium-rabbitmq
+  namespace: studium
+  labels:
+    app: studium-rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: studium-rabbitmq
+  template:
+    metadata:
+      labels:
+        app: studium-rabbitmq
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3-management-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: amqp
+              containerPort: 5672
+            - name: management
+              containerPort: 15672
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              value: "studium"
+            - name: RABBITMQ_DEFAULT_PASS
+              value: "StudiumRabbitMQ2026!"
+            - name: RABBITMQ_DEFAULT_VHOST
+              value: "/"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "check_running"]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: studium-rabbitmq-service
+  namespace: studium
+  labels:
+    app: studium-rabbitmq
+spec:
+  type: ClusterIP
+  selector:
+    app: studium-rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+    - name: management
+      port: 15672
+      targetPort: 15672
