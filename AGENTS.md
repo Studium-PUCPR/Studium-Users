@@ -198,3 +198,6 @@
   - Added `.AutoProvision()` to `UseAmazonSqsTransport` in `Api/Extensions/MessagingExtensions.cs` to ensure `wolverine-dead-letter-queue` and declared queues are created automatically.
 - **2026-11-08 (Resolved CI/CD Expression Linter Warning):**
   - Replaced `${{ env.IMAGE_URI }}` with `$IMAGE_URI` in `.github/workflows/ci-cd.yml` to eliminate static workflow schema analysis warnings.
+
+- **2026-11-08 (Fix AuditLog Concurrency Exception):**
+  - Configured `AuditLogConfig` with `ValueGeneratedNever()` and overrode `SaveChangesAsync` in `UsersDbContext` to enforce `EntityState.Added` for immutable audit entries, resolving the `DbUpdateConcurrencyException` when toggling user blocks or updating profiles.

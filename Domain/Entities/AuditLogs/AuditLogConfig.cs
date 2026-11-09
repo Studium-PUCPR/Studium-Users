@@ -10,7 +10,7 @@ public class AuditLogConfig : IEntityTypeConfiguration<AuditLog>
         entity.ToTable("AuditLogs");
         entity.HasKey(a => a.Id);
 
-        entity.Property(a => a.Id).ValueGeneratedOnAdd();
+        entity.Property(a => a.Id).ValueGeneratedNever();
         entity.Property(a => a.UserId).HasMaxLength(128).IsRequired();
         entity.Property(a => a.Action).IsRequired();
         entity.Property(a => a.TimestampUtc).HasDefaultValueSql("now()").IsRequired();

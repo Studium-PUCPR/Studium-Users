@@ -114,6 +114,11 @@ public class UsersController(UsersDbContext db, IMessageBus messageBus) : Contro
             return NotFound(new { error = "USER_NOT_FOUND", message = $"User '{id}' was not found." });
 
         user.UpdateProfile(request.PhoneNumber, request.NotifyReminders, request.NotifyConfirmations);
+        foreach (var log in user.AuditLogs)
+        {
+            if (db.Entry(log).State != EntityState.Unchanged)
+                db.Entry(log).State = EntityState.Added;
+        }
         await db.SaveChangesAsync(ct);
 
         return Ok(user.Adapt<UserDetailDto>());
@@ -134,6 +139,11 @@ public class UsersController(UsersDbContext db, IMessageBus messageBus) : Contro
             return NotFound(new { error = "USER_NOT_FOUND", message = $"User '{id}' was not found." });
 
         user.ToggleBlock(request?.Reason, User.GetUserId());
+        foreach (var log in user.AuditLogs)
+        {
+            if (db.Entry(log).State != EntityState.Unchanged)
+                db.Entry(log).State = EntityState.Added;
+        }
         await db.SaveChangesAsync(ct);
 
         await messageBus.PublishAsync(new UserStatusChangedEvent(

@@ -14,4 +14,16 @@ public class UsersDbContext(DbContextOptions<UsersDbContext> options) : DbContex
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(User).Assembly);
     }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        foreach (var entry in ChangeTracker.Entries<AuditLog>())
+        {
+            if (entry.State == EntityState.Modified || entry.State == EntityState.Detached)
+            {
+                entry.State = EntityState.Added;
+            }
+        }
+        return base.SaveChangesAsync(cancellationToken);
+    }
 }
