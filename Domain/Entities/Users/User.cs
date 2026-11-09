@@ -71,6 +71,11 @@ public partial class User
     public DateTime? BlockedAtUtc { get; private set; }
 
     /// <summary>
+    /// UTC timestamp until which the user account remains suspended. Null if permanently blocked or unblocked.
+    /// </summary>
+    public DateTime? BlockedUntilUtc { get; private set; }
+
+    /// <summary>
     /// Number of no-shows recorded for the user in the last 30 days.
     /// </summary>
     public int NoShowCount30Days { get; private set; }
@@ -147,7 +152,7 @@ public partial class User
         ApplyProfilePreferences(phoneNumber, notifyReminders, notifyConfirmations);
     }
 
-    public void Block(string? reason, string? adminUserId = null)
+    public void Block(string? reason, string? adminUserId = null, int? suspensionDays = null)
     {
         if (!string.IsNullOrWhiteSpace(adminUserId) && Id == adminUserId)
         {
@@ -166,6 +171,14 @@ public partial class User
         IsBlocked = true;
         BlockReason = reason.Trim();
         BlockedAtUtc = DateTime.UtcNow;
+        if (suspensionDays.HasValue && suspensionDays.Value > 0)
+        {
+            BlockedUntilUtc = BlockedAtUtc.Value.AddDays(suspensionDays.Value);
+        }
+        else
+        {
+            BlockedUntilUtc = null;
+        }
     }
 
     public void Unblock()
@@ -173,6 +186,17 @@ public partial class User
         IsBlocked = false;
         BlockReason = null;
         BlockedAtUtc = null;
+        BlockedUntilUtc = null;
+    }
+
+    public bool CheckAutoUnblock(DateTime nowUtc)
+    {
+        if (IsBlocked && BlockedUntilUtc.HasValue && BlockedUntilUtc.Value <= nowUtc)
+        {
+            Unblock();
+            return true;
+        }
+        return false;
     }
 
     public bool ToggleBlock(string? reason, string? adminUserId = null)

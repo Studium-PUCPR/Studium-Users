@@ -26,6 +26,7 @@ public class UserConfig : IEntityTypeConfiguration<User>
         entity.Property(u => u.CompletedReservations30Days).HasDefaultValue(0).IsRequired();
         entity.Property(u => u.CancelledReservations30Days).HasDefaultValue(0).IsRequired();
         entity.Property(u => u.LastActivityResetUtc);
+        entity.Property(u => u.BlockedUntilUtc);
 
         entity.Property(u => u.CreatedAtUtc).HasDefaultValueSql("now()").IsRequired();
 

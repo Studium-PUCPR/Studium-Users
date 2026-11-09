@@ -22,6 +22,25 @@ namespace Studium_Users.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Studium_Users.Domain.Entities.Inbox.InboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("HandlerName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id", "HandlerName");
+
+                    b.HasIndex("ReceivedAtUtc");
+
+                    b.ToTable("InboxMessages", (string)null);
+                });
+
             modelBuilder.Entity("Studium_Users.Domain.Entities.Users.User", b =>
                 {
                     b.Property<string>("Id")
@@ -33,6 +52,9 @@ namespace Studium_Users.Data.Migrations
                         .HasColumnType("character varying(500)");
 
                     b.Property<DateTime?>("BlockedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("BlockedUntilUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("CancelledReservations30Days")

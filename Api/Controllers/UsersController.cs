@@ -92,10 +92,23 @@ public class UsersController(UsersDbContext db, IMessageBus messageBus, ILogger<
             return NotFound(new { error = "USER_NOT_FOUND", message = $"User '{id}' was not found." });
 
         var nowUtc = DateTime.UtcNow;
+        var stateChanged = false;
+
         var monthStart = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         if (user.LastActivityResetUtc is null || user.LastActivityResetUtc.Value < monthStart)
         {
             user.EnsureMonthlyActivityWindow(nowUtc);
+            stateChanged = true;
+        }
+
+        if (user.CheckAutoUnblock(nowUtc))
+        {
+            stateChanged = true;
+            await messageBus.PublishAsync(new UserStatusChangedEvent(user.Id, false, null, nowUtc));
+        }
+
+        if (stateChanged)
+        {
             await db.SaveChangesAsync(ct);
         }
 
@@ -165,57 +178,5 @@ public class UsersController(UsersDbContext db, IMessageBus messageBus, ILogger<
             TimestampUtc: DateTime.UtcNow));
 
         return Ok(user.Adapt<UserDetailDto>());
-    }
-
-    /// <summary>
-    /// 5. GET /api/users/{id}/audit-logs - Queries immutable audit logs from Studium-Audit for a specific user.
-    /// </summary>
-    [HttpGet("{id}/audit-logs")]
-    [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<IReadOnlyList<AuditLogEntryDto>>> GetUserAuditLogs(
-        string id,
-        [FromServices] IHttpClientFactory httpClientFactory,
-        CancellationToken ct = default)
-    {
-        var client = httpClientFactory.CreateClient("AuditClient");
-        if (Request.Headers.TryGetValue("Authorization", out var authHeader) && !string.IsNullOrWhiteSpace(authHeader))
-        {
-            client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", authHeader.ToString());
-        }
-
-        const int maxAttempts = 3;
-        var delays = new[] { TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(1000) };
-
-        for (var attempt = 1; attempt <= maxAttempts; attempt++)
-        {
-            try
-            {
-                var response = await client.GetAsync($"/api/audit/resources/{id}", ct);
-                response.EnsureSuccessStatusCode();
-
-                var logs = await response.Content.ReadFromJsonAsync<List<AuditLogDto>>(cancellationToken: ct);
-                var results = logs?.Select(l => new AuditLogEntryDto(
-                    l.Id,
-                    l.ResourceId,
-                    l.ActorId,
-                    l.Action,
-                    l.MetadataJson,
-                    l.TimestampUtc)).ToList() ?? [];
-
-                return Ok(results);
-            }
-            catch (Exception ex) when (attempt < maxAttempts && !ct.IsCancellationRequested)
-            {
-                logger.LogWarning(ex, "Attempt {Attempt} to query audit logs for user {UserId} failed. Retrying in {Delay}ms...",
-                    attempt, id, delays[attempt - 1].TotalMilliseconds);
-                await Task.Delay(delays[attempt - 1], ct);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Final attempt {Attempt} to query audit logs for user {UserId} failed", attempt, id);
-            }
-        }
-
-        return Ok(Array.Empty<AuditLogEntryDto>());
     }
 }

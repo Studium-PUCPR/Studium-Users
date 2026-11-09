@@ -37,7 +37,8 @@ public record UserListItemDto(
     int NoShowCount30Days,
     bool IsBlocked,
     string? BlockReason,
-    DateTime? BlockedAtUtc
+    DateTime? BlockedAtUtc,
+    DateTime? BlockedUntilUtc = null
 );
 
 /// <summary>
@@ -88,6 +89,7 @@ public record UserDetailDto(
     bool IsBlocked,
     string? BlockReason,
     DateTime? BlockedAtUtc,
+    DateTime? BlockedUntilUtc,
     int TotalReservations30Days,
     int CompletedReservations30Days,
     int CancelledReservations30Days,

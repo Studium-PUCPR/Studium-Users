@@ -18,7 +18,8 @@ public record UserActivityIntegrationEvent(
     UserActivityType EventType,
     string UserId,
     string? ActivityReferenceId,
-    DateTime OccurredAtUtc
+    DateTime OccurredAtUtc,
+    Guid? EventId = null
 );
 
 /// <summary>

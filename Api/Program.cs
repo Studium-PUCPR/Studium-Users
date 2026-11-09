@@ -7,6 +7,7 @@ using Studium_Users.Api.Extensions;
 using Studium_Users.Api.HostedServices;
 using Studium_Users.Api.Middleware;
 using Studium_Users.Data;
+using Studium_Users.Services.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,22 +39,14 @@ builder.Services.CritterStackDefaults(options =>
 builder.AddStudiumMessaging();
 builder.AddStudiumAuthentication();
 
-builder.Services.AddHttpClient("AuditClient", client =>
-{
-    var auditUrl = builder.Configuration["Services:AuditUrl"]
-        ?? "http://studium-audit-service.studium.svc.cluster.local";
-    client.BaseAddress = new Uri(auditUrl);
-    client.Timeout = TimeSpan.FromSeconds(5);
-});
+builder.Services.Configure<UserOptions>(builder.Configuration.GetSection(UserOptions.SectionName));
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.AddOpenApi();
-builder.Services.AddCors(options =>
-    options.AddPolicy("StudiumCors", policy =>
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+builder.Services.AddStudiumCors(builder.Configuration);
 
 var app = builder.Build();
 

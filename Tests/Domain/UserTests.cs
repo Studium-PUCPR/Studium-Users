@@ -100,6 +100,49 @@ public class UserTests
         Assert.NotNull(user.BlockedAtUtc);
     }
 
+    [Fact]
+    public void Block_WithSuspensionDays_ShouldSetBlockedUntilUtc()
+    {
+        var user = CreateSampleUser();
+
+        user.Block("3 no-shows", adminUserId: "usr-admin", suspensionDays: 7);
+
+        Assert.True(user.IsBlocked);
+        Assert.NotNull(user.BlockedAtUtc);
+        Assert.NotNull(user.BlockedUntilUtc);
+        Assert.Equal(user.BlockedAtUtc!.Value.AddDays(7), user.BlockedUntilUtc.Value);
+    }
+
+    [Fact]
+    public void CheckAutoUnblock_WhenExpired_ShouldUnblockUser()
+    {
+        var user = CreateSampleUser();
+        user.Block("Temporary suspension", adminUserId: "usr-admin", suspensionDays: 7);
+
+        var futureDate = user.BlockedUntilUtc!.Value.AddMinutes(1);
+        var unblocked = user.CheckAutoUnblock(futureDate);
+
+        Assert.True(unblocked);
+        Assert.False(user.IsBlocked);
+        Assert.Null(user.BlockReason);
+        Assert.Null(user.BlockedAtUtc);
+        Assert.Null(user.BlockedUntilUtc);
+    }
+
+    [Fact]
+    public void CheckAutoUnblock_WhenNotExpired_ShouldRemainBlocked()
+    {
+        var user = CreateSampleUser();
+        user.Block("Temporary suspension", adminUserId: "usr-admin", suspensionDays: 7);
+
+        var beforeExpiration = user.BlockedUntilUtc!.Value.AddMinutes(-5);
+        var unblocked = user.CheckAutoUnblock(beforeExpiration);
+
+        Assert.False(unblocked);
+        Assert.True(user.IsBlocked);
+        Assert.NotNull(user.BlockedUntilUtc);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

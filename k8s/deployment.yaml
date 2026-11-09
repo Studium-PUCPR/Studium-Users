@@ -15,7 +15,8 @@ data:
   RabbitMQ__UsersQueueName: "studium-users-events-queue"
   RabbitMQ__BookingQueueName: "studium-booking-events-queue"
   RabbitMQ__AuditQueueName: "studium-audit-events-queue"
-  Services__AuditUrl: "http://studium-audit-service.studium.svc.cluster.local"
+  Users__MaxNoShowsBeforeSuspension: "3"
+  Users__SuspensionDays: "7"
 ---
 apiVersion: apps/v1
 kind: Deployment
