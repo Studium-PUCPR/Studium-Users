@@ -65,6 +65,9 @@ namespace Studium_Users.Data.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
+                    b.Property<DateTime?>("LastActivityResetUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("NoShowCount30Days")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")

@@ -91,6 +91,11 @@ public partial class User
     public int CancelledReservations30Days { get; private set; }
 
     /// <summary>
+    /// UTC timestamp of the start of the monthly window tracked for user activity metrics.
+    /// </summary>
+    public DateTime? LastActivityResetUtc { get; private set; }
+
+    /// <summary>
     /// UTC timestamp when the user record was first created. Read-only.
     /// </summary>
     public DateTime CreatedAtUtc { get; init; }
@@ -186,6 +191,19 @@ public partial class User
     public void RecordReservationCheckedIn() => CompletedReservations30Days++;
     public void RecordReservationCancelled() => CancelledReservations30Days++;
     public void RecordNoShow() => NoShowCount30Days++;
+
+    public void EnsureMonthlyActivityWindow(DateTime nowUtc)
+    {
+        var currentMonthStart = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        if (LastActivityResetUtc is null || LastActivityResetUtc.Value < currentMonthStart)
+        {
+            TotalReservations30Days = 0;
+            CompletedReservations30Days = 0;
+            CancelledReservations30Days = 0;
+            NoShowCount30Days = 0;
+            LastActivityResetUtc = currentMonthStart;
+        }
+    }
 
     private void ApplyProfilePreferences(string? phoneNumber, bool notifyReminders, bool notifyConfirmations)
     {

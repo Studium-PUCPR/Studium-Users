@@ -80,7 +80,7 @@ public class UsersController(UsersDbContext db, IMessageBus messageBus, ILogger<
         if (!User.IsSelfOrAdmin(id))
             return Forbid();
 
-        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, ct);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
         if (user is null && User.GetUserId() == id)
         {
             user = User.ToUserEntity();
@@ -90,6 +90,14 @@ public class UsersController(UsersDbContext db, IMessageBus messageBus, ILogger<
 
         if (user is null)
             return NotFound(new { error = "USER_NOT_FOUND", message = $"User '{id}' was not found." });
+
+        var nowUtc = DateTime.UtcNow;
+        var monthStart = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        if (user.LastActivityResetUtc is null || user.LastActivityResetUtc.Value < monthStart)
+        {
+            user.EnsureMonthlyActivityWindow(nowUtc);
+            await db.SaveChangesAsync(ct);
+        }
 
         return Ok(user.Adapt<UserDetailDto>());
     }

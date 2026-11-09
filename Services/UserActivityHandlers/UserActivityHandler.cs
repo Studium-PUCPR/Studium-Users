@@ -26,6 +26,8 @@ public class UserActivityHandler(
             throw new KeyNotFoundException($"User '{activityEvent.UserId}' was not found in studium_users.");
         }
 
+        user.EnsureMonthlyActivityWindow(activityEvent.OccurredAtUtc);
+
         switch (activityEvent.EventType)
         {
             case UserActivityType.ReservationCreated:

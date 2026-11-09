@@ -170,6 +170,26 @@ public class UserTests
         Assert.Equal(1, user.NoShowCount30Days);
     }
 
+    [Fact]
+    public void EnsureMonthlyActivityWindow_ShouldResetCountersWhenMonthChanges()
+    {
+        var user = CreateSampleUser();
+        var octDate = new DateTime(2026, 10, 15, 12, 0, 0, DateTimeKind.Utc);
+        user.EnsureMonthlyActivityWindow(octDate);
+
+        user.RecordReservationCreated();
+        user.RecordNoShow();
+        Assert.Equal(1, user.TotalReservations30Days);
+        Assert.Equal(1, user.NoShowCount30Days);
+
+        var novDate = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc);
+        user.EnsureMonthlyActivityWindow(novDate);
+
+        Assert.Equal(0, user.TotalReservations30Days);
+        Assert.Equal(0, user.NoShowCount30Days);
+        Assert.Equal(new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc), user.LastActivityResetUtc);
+    }
+
     private static User CreateSampleUser() => new(
         id: "usr-student-1",
         fullName: "Rafael Lima",
