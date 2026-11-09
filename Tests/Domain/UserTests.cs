@@ -1,4 +1,3 @@
-using Studium_Users.Domain.Entities.AuditLogs;
 using Studium_Users.Domain.Entities.Users;
 using Studium_Users.Domain.Exceptions;
 using Xunit;
@@ -8,7 +7,7 @@ namespace Studium_Users.Tests.Domain;
 public class UserTests
 {
     [Fact]
-    public void Constructor_WithValidArguments_CreatesUserAndRecordsUserLoginAudit()
+    public void Constructor_WithValidArguments_CreatesUser()
     {
         var user = new User(
             id: "usr-123",
@@ -31,10 +30,6 @@ public class UserTests
         Assert.False(user.IsBlocked);
         Assert.Null(user.BlockReason);
         Assert.Null(user.BlockedAtUtc);
-
-        var audit = Assert.Single(user.AuditLogs);
-        Assert.Equal("usr-123", audit.UserId);
-        Assert.Equal(AuditAction.UserLogin, audit.Action);
     }
 
     [Theory]
@@ -67,7 +62,7 @@ public class UserTests
     [InlineData("(41) 3333-4444")]
     [InlineData(null)]
     [InlineData("")]
-    public void UpdateProfile_WithValidPhoneFormat_UpdatesFieldsAndRecordsAudit(string? phone)
+    public void UpdateProfile_WithValidPhoneFormat_UpdatesFields(string? phone)
     {
         var user = CreateSampleUser();
 
@@ -76,8 +71,6 @@ public class UserTests
         Assert.Equal(string.IsNullOrWhiteSpace(phone) ? null : phone, user.PhoneNumber);
         Assert.False(user.NotifyReminders);
         Assert.False(user.NotifyConfirmations);
-        Assert.Equal(2, user.AuditLogs.Count);
-        Assert.Equal(AuditAction.ProfileUpdated, user.AuditLogs.Last().Action);
     }
 
     [Theory]
@@ -93,11 +86,10 @@ public class UserTests
             user.UpdateProfile(invalidPhone, notifyReminders: true, notifyConfirmations: true));
 
         Assert.Equal("INVALID_PHONE_FORMAT", ex.ErrorCode);
-        Assert.Single(user.AuditLogs);
     }
 
     [Fact]
-    public void Block_WithValidReason_BlocksUserAndRecordsAudit()
+    public void Block_WithValidReason_BlocksUser()
     {
         var user = CreateSampleUser();
 
@@ -106,8 +98,6 @@ public class UserTests
         Assert.True(user.IsBlocked);
         Assert.Equal("3 no-shows in 30 days.", user.BlockReason);
         Assert.NotNull(user.BlockedAtUtc);
-        Assert.Equal(2, user.AuditLogs.Count);
-        Assert.Equal(AuditAction.UserBlocked, user.AuditLogs.Last().Action);
     }
 
     [Theory]
@@ -137,7 +127,7 @@ public class UserTests
     }
 
     [Fact]
-    public void Unblock_ClearsBlockStateAndRecordsAudit()
+    public void Unblock_ClearsBlockState()
     {
         var user = CreateSampleUser();
         user.Block("Repeated no-shows", adminUserId: "usr-admin");
@@ -147,8 +137,6 @@ public class UserTests
         Assert.False(user.IsBlocked);
         Assert.Null(user.BlockReason);
         Assert.Null(user.BlockedAtUtc);
-        Assert.Equal(3, user.AuditLogs.Count);
-        Assert.Equal(AuditAction.UserUnblocked, user.AuditLogs.Last().Action);
     }
 
     [Fact]

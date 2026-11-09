@@ -28,11 +28,6 @@ public class UserConfig : IEntityTypeConfiguration<User>
 
         entity.Property(u => u.CreatedAtUtc).HasDefaultValueSql("now()").IsRequired();
 
-        entity.HasMany(u => u.AuditLogs)
-              .WithOne()
-              .HasForeignKey(a => a.UserId)
-              .OnDelete(DeleteBehavior.Restrict);
-
         entity.HasIndex(u => u.Email).IsUnique();
         entity.HasIndex(u => u.RegistrationNumber).IsUnique();
         entity.HasIndex(u => u.Role);

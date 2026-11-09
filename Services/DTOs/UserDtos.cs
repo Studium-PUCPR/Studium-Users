@@ -100,3 +100,22 @@ public record UserDetailDto(
 /// </summary>
 /// <param name="Reason">Mandatory justification for blocking the user account. Read-only.</param>
 public record BlockUserRequest(string? Reason);
+
+public record AuditLogEntryDto(
+    Guid Id,
+    string UserId,
+    string ActorId,
+    string Action,
+    string? Reason,
+    DateTime CreatedAtUtc
+);
+
+public record AuditLogDto(
+    Guid Id,
+    string ServiceSource,
+    string ResourceId,
+    string ActorId,
+    string Action,
+    string? MetadataJson,
+    DateTime TimestampUtc
+);

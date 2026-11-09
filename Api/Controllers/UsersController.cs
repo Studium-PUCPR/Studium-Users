@@ -4,10 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Studium_Users.Api.Extensions;
 using Studium_Users.Data;
-using Studium_Users.Domain.Entities.AuditLogs;
 using Studium_Users.Domain.Entities.Users;
 using Studium_Users.Services.DTOs;
-
 using Wolverine;
 
 namespace Studium_Users.Api.Controllers;
@@ -114,12 +112,15 @@ public class UsersController(UsersDbContext db, IMessageBus messageBus) : Contro
             return NotFound(new { error = "USER_NOT_FOUND", message = $"User '{id}' was not found." });
 
         user.UpdateProfile(request.PhoneNumber, request.NotifyReminders, request.NotifyConfirmations);
-        foreach (var log in user.AuditLogs)
-        {
-            if (db.Entry(log).State != EntityState.Unchanged)
-                db.Entry(log).State = EntityState.Added;
-        }
         await db.SaveChangesAsync(ct);
+
+        await messageBus.PublishAsync(new AuditIntegrationEvent(
+            ServiceSource: "Users",
+            ResourceId: user.Id,
+            ActorId: User.GetUserId(),
+            Action: "ProfileUpdated",
+            MetadataJson: $"{{\"phoneNumber\":\"{user.PhoneNumber}\"}}",
+            TimestampUtc: DateTime.UtcNow));
 
         return Ok(user.Adapt<UserDetailDto>());
     }
@@ -139,11 +140,6 @@ public class UsersController(UsersDbContext db, IMessageBus messageBus) : Contro
             return NotFound(new { error = "USER_NOT_FOUND", message = $"User '{id}' was not found." });
 
         user.ToggleBlock(request?.Reason, User.GetUserId());
-        foreach (var log in user.AuditLogs)
-        {
-            if (db.Entry(log).State != EntityState.Unchanged)
-                db.Entry(log).State = EntityState.Added;
-        }
         await db.SaveChangesAsync(ct);
 
         await messageBus.PublishAsync(new UserStatusChangedEvent(
@@ -152,30 +148,44 @@ public class UsersController(UsersDbContext db, IMessageBus messageBus) : Contro
             user.BlockReason,
             DateTime.UtcNow));
 
+        await messageBus.PublishAsync(new AuditIntegrationEvent(
+            ServiceSource: "Users",
+            ResourceId: user.Id,
+            ActorId: User.GetUserId(),
+            Action: user.IsBlocked ? "UserBlocked" : "UserUnblocked",
+            MetadataJson: $"{{\"reason\":\"{user.BlockReason}\"}}",
+            TimestampUtc: DateTime.UtcNow));
+
         return Ok(user.Adapt<UserDetailDto>());
     }
 
     /// <summary>
-    /// 5. GET /api/users/{id}/audit-logs - Admin endpoint to inspect immutable security audit logs for a specific user.
+    /// 5. GET /api/users/{id}/audit-logs - Queries immutable audit logs from Studium-Audit for a specific user.
     /// </summary>
     [HttpGet("{id}/audit-logs")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<IReadOnlyList<AuditLog>>> GetUserAuditLogs(
+    public async Task<ActionResult<IReadOnlyList<AuditLogEntryDto>>> GetUserAuditLogs(
         string id,
-        [FromQuery] AuditAction? action = null,
+        [FromServices] IHttpClientFactory httpClientFactory,
         CancellationToken ct = default)
     {
-        var query = db.AuditLogs
-            .AsNoTracking()
-            .Where(a => a.UserId == id);
+        try
+        {
+            var client = httpClientFactory.CreateClient("AuditClient");
+            var logs = await client.GetFromJsonAsync<List<AuditLogDto>>($"/api/audit/resources/{id}", ct);
+            var results = logs?.Select(l => new AuditLogEntryDto(
+                l.Id,
+                l.ResourceId,
+                l.ActorId,
+                l.Action,
+                l.MetadataJson,
+                l.TimestampUtc)).ToList() ?? [];
 
-        if (action.HasValue)
-            query = query.Where(a => a.Action == action.Value);
-
-        var logs = await query
-            .OrderByDescending(a => a.TimestampUtc)
-            .ToListAsync(ct);
-
-        return Ok(logs);
+            return Ok(results);
+        }
+        catch
+        {
+            return Ok(Array.Empty<AuditLogEntryDto>());
+        }
     }
 }

@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using Studium_Users.Domain.Entities.AuditLogs;
 using Studium_Users.Domain.Exceptions;
 
 namespace Studium_Users.Domain.Entities.Users;
@@ -96,11 +95,6 @@ public partial class User
     /// </summary>
     public DateTime CreatedAtUtc { get; init; }
 
-    /// <summary>
-    /// Immutable audit trail entries associated with this user.
-    /// </summary>
-    public List<AuditLog> AuditLogs { get; init; } = [];
-
     private User() { }
 
     public User(
@@ -141,13 +135,11 @@ public partial class User
         CreatedAtUtc = DateTime.UtcNow;
 
         ApplyProfilePreferences(phoneNumber, notifyReminders, notifyConfirmations);
-        RecordAudit(AuditAction.UserLogin);
     }
 
     public void UpdateProfile(string? phoneNumber, bool notifyReminders, bool notifyConfirmations)
     {
         ApplyProfilePreferences(phoneNumber, notifyReminders, notifyConfirmations);
-        RecordAudit(AuditAction.ProfileUpdated);
     }
 
     public void Block(string? reason, string? adminUserId = null)
@@ -169,7 +161,6 @@ public partial class User
         IsBlocked = true;
         BlockReason = reason.Trim();
         BlockedAtUtc = DateTime.UtcNow;
-        RecordAudit(AuditAction.UserBlocked);
     }
 
     public void Unblock()
@@ -177,7 +168,6 @@ public partial class User
         IsBlocked = false;
         BlockReason = null;
         BlockedAtUtc = null;
-        RecordAudit(AuditAction.UserUnblocked);
     }
 
     public bool ToggleBlock(string? reason, string? adminUserId = null)
@@ -218,14 +208,5 @@ public partial class User
 
         NotifyReminders = notifyReminders;
         NotifyConfirmations = notifyConfirmations;
-    }
-
-    private void RecordAudit(AuditAction action)
-    {
-        AuditLogs.Add(new AuditLog(
-            Id: Guid.NewGuid(),
-            UserId: Id,
-            Action: action,
-            TimestampUtc: DateTime.UtcNow));
     }
 }

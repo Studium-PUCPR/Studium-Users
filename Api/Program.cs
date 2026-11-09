@@ -31,6 +31,14 @@ builder.Services.CritterStackDefaults(options =>
 builder.AddStudiumMessaging();
 builder.AddStudiumAuthentication();
 
+builder.Services.AddHttpClient("AuditClient", client =>
+{
+    var auditUrl = builder.Configuration["Services:AuditUrl"]
+        ?? "http://studium-audit-service.studium.svc.cluster.local";
+    client.BaseAddress = new Uri(auditUrl);
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));

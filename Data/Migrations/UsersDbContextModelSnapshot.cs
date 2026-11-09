@@ -22,36 +22,6 @@ namespace Studium_Users.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Studium_Users.Domain.Entities.AuditLogs.AuditLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Action")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("TimestampUtc")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Action");
-
-                    b.HasIndex("TimestampUtc");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("AuditLogs", (string)null);
-                });
-
             modelBuilder.Entity("Studium_Users.Domain.Entities.Users.User", b =>
                 {
                     b.Property<string>("Id")
@@ -142,20 +112,6 @@ namespace Studium_Users.Data.Migrations
                     b.HasIndex("Role");
 
                     b.ToTable("Users", (string)null);
-                });
-
-            modelBuilder.Entity("Studium_Users.Domain.Entities.AuditLogs.AuditLog", b =>
-                {
-                    b.HasOne("Studium_Users.Domain.Entities.Users.User", null)
-                        .WithMany("AuditLogs")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Studium_Users.Domain.Entities.Users.User", b =>
-                {
-                    b.Navigation("AuditLogs");
                 });
 #pragma warning restore 612, 618
         }

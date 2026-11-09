@@ -30,3 +30,15 @@ public record UserStatusChangedEvent(
     string? BlockReason,
     DateTime OccurredAtUtc
 );
+
+/// <summary>
+/// Outbound message payload published to Studium-Audit.
+/// </summary>
+public record AuditIntegrationEvent(
+    string ServiceSource,
+    string ResourceId,
+    string ActorId,
+    string Action,
+    string? MetadataJson = null,
+    DateTime? TimestampUtc = null
+);

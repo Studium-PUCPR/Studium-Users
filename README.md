@@ -7,7 +7,7 @@ Stack: `.NET 10.0` Web API + PostgreSQL (`studium_users`) + RabbitMQ (`Wolverine
 ## Scope
 - **User Profiles & Notification Preferences:** View profile and update `PhoneNumber`, `NotifyReminders`, and `NotifyConfirmations` (`NotifyCancellationsAndWaitlist` is always `true`).
 - **Admin User Management & Blocking:** Search/filter users, inspect 30-day reservation/no-show counters, block accounts with a mandatory reason, and unblock accounts.
-- **Immutable Security Audit Trail:** Automatically records `UserLogin`, `ProfileUpdated`, `UserBlocked`, `UserUnblocked`, and `UnauthorizedAccess` in `AuditLogs`.
+- **Centralized Audit Integration:** Publishes domain audit events (`AuditIntegrationEvent`) to RabbitMQ queue `studium-audit-events-queue` for persistent compliance in `Studium-Audit`, and proxies user audit lookups to `Studium-Audit` via synchronous HTTP (`GET /api/audit/resources/{id}`).
 - **Async RabbitMQ Integration:** Consumes booking events (`ReservationCreated`, `ReservationCheckedIn`, `ReservationCancelled`, `NoShowRecorded`) via Wolverine RabbitMQ queues and publishes user status/preference updates (`UserStatusChangedEvent`).
 
 ## Local Environment Setup & Testing
